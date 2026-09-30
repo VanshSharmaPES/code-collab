@@ -1,0 +1,25 @@
+# dependencies and build output
+node_modules/
+.next/
+out/
+dist/
+
+# secrets and local config
+.env
+.env.*
+!.env.example
+
+# logs and OS files
+*.log
+.DS_Store
+
+# local database data and scratch
+pgdata/
+mongodata/
+*.dump
+tmp/
+
+# personal reference, not for the repo
+plan.md
+CodeCollab_Work_Split_Plan.pdf
+.claude/
