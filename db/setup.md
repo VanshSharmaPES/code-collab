@@ -1,71 +1,99 @@
 # Database setup (P1-04)
 
-Targets: PostgreSQL 16, MongoDB 7. Check what you already have first:
+Targets: PostgreSQL 16 (with pgvector) and MongoDB 7. Both run in Podman containers so that every machine has the exact same versions, regardless of distro packages.
+
+Docker works too: replace `podman` with `docker` in every command.
+
+## 1. Start the containers
 
 ```bash
-psql --version && mongosh --version
+# PostgreSQL 16 + pgvector
+podman run -d --name cc-postgres \
+  -e POSTGRES_USER=codecollab -e POSTGRES_PASSWORD=change_me -e POSTGRES_DB=codecollab \
+  -p 5432:5432 -v cc-pgdata:/var/lib/postgresql/data \
+  docker.io/pgvector/pgvector:pg16
+
+# MongoDB 7
+podman run -d --name cc-mongo \
+  -p 27017:27017 -v cc-mongodata:/data/db \
+  docker.io/library/mongo:7
 ```
 
-## PostgreSQL 16
+- `-p host:container` publishes the database port on `localhost`.
+- `-v cc-pgdata:...` is a named volume. Data survives removing or recreating the container.
+- `POSTGRES_*` variables only take effect the first time the volume is initialised.
+- The password above is for local development only. Change it if the port is reachable from other machines.
 
-### Fedora
-Fedora's default repos may ship a newer major version than 16. To match the team version, use the PGDG repo:
+After a reboot, or if a container is stopped:
 
 ```bash
-sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/F-$(rpm -E %fedora)-x86_64/pgdg-fedora-repo-latest.noarch.rpm
-sudo dnf install -y postgresql16-server postgresql16-contrib
-sudo /usr/pgsql-16/bin/postgresql-16-setup initdb
-sudo systemctl enable --now postgresql-16
+podman start cc-postgres cc-mongo
 ```
 
-If PGDG has no build for your Fedora release, install the distro version (`sudo dnf install postgresql-server postgresql-contrib`) and tell the other person which major version you have. The schema uses nothing newer than 16.
-
-### Ubuntu / Debian
-```bash
-sudo apt install -y postgresql-16 postgresql-contrib
-```
-
-### Create the database and app user
-```bash
-sudo -u postgres psql <<'SQL'
-CREATE ROLE codecollab LOGIN PASSWORD 'change_me';
-CREATE DATABASE codecollab OWNER codecollab;
-SQL
-```
-
-If password login is refused on Fedora, change `ident` to `scram-sha-256` for the `127.0.0.1/32` and `::1/128` lines in `pg_hba.conf`, then restart the service.
-
-Copy `.env.example` to `.env` and set `DATABASE_URL` to match.
-
-### Verify
-```bash
-psql "$DATABASE_URL" -c 'select version();'
-```
-
-## pgvector (only needed if Week 6 goes ahead)
-Install now so it is not a surprise later:
-```bash
-sudo dnf install -y pgvector_16      # PGDG package name; on Debian: postgresql-16-pgvector
-```
-
-## MongoDB 7
-
-Add the official MongoDB 7.0 repo for your distro (see https://www.mongodb.com/docs/v7.0/administration/install-on-linux/), then:
+## 2. Verify
 
 ```bash
-sudo dnf install -y mongodb-org
-sudo systemctl enable --now mongod
+podman exec cc-postgres psql -U codecollab -c 'select version();'
+podman exec cc-mongo mongosh --quiet --eval 'db.runCommand({ping:1})'
 ```
 
-### Verify
-```bash
-mongosh --eval 'db.runCommand({ ping: 1 })'
-```
+Expected: `PostgreSQL 16.x` and `{ ok: 1 }`.
 
-## Load the schema
+## 3. Configure the application
 
 ```bash
-./db/apply.sh        # drops and recreates the public schema, then applies db/schema/*.sql
+cp .env.example .env
 ```
 
-This destroys everything in the target database. Use it on a dev database only.
+The defaults in `.env.example` match the container commands above. If you change the password or port, update `DATABASE_URL` and `MONGO_URL` in `.env` as well. `.env` is git-ignored and must never be committed.
+
+## 4. Load the schema
+
+Without a local `psql` client (works with the containers as-is):
+
+```bash
+podman exec -i cc-postgres psql -U codecollab -v ON_ERROR_STOP=1 < db/schema/01_core.sql
+podman exec cc-postgres psql -U codecollab -c '\dt'
+```
+
+`\dt` should list the tables from the schema files applied so far.
+
+With a local `psql` client installed (`sudo dnf install postgresql` on Fedora), the reset script reads `DATABASE_URL` from `.env` and applies every file in `db/schema/`:
+
+```bash
+./db/apply.sh
+```
+
+`apply.sh` drops and recreates the whole `public` schema first. Use it on a development database only.
+
+## 5. Interactive shells
+
+```bash
+podman exec -it cc-postgres psql -U codecollab
+podman exec -it cc-mongo mongosh
+```
+
+## 6. Reset from scratch
+
+This deletes all data in both databases.
+
+```bash
+podman rm -f cc-postgres cc-mongo
+podman volume rm cc-pgdata cc-mongodata
+```
+
+Then repeat step 1.
+
+## pgvector
+
+The `pgvector/pgvector:pg16` image already includes the extension. It is only enabled when needed (Week 6, if that week goes ahead):
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+## Troubleshooting
+
+- **Port already in use:** another Postgres or Mongo is already listening on 5432 or 27017. Stop it, or map a different host port (e.g. `-p 5433:5432`) and update `.env`.
+- **`no container with name ...`:** you ran a verify command before the matching `podman run`. Start the container first.
+- **Container name already exists:** `podman start cc-postgres`, or `podman rm cc-postgres` to recreate it (the volume keeps the data).
