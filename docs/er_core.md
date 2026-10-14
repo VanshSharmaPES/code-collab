@@ -1,6 +1,6 @@
-# ER diagram: core 8 tables (P1-02)
+# ER diagram: all 14 tables (P1-02, P1-05)
 
-Mermaid source matching `db/schema/01_core.sql`. Render it with `docs/render_er.sh`, or paste the block into draw.io via Arrange → Insert → Advanced → Mermaid. Extend it with the remaining six tables in Week 2 (P1-05).
+Mermaid source matching `db/schema/01_core.sql`. Render it with `docs/render_er.sh`, or paste the block into draw.io via Arrange → Insert → Advanced → Mermaid. `audit_log.entity_id` is deliberately not a foreign key: one column refers to several tables, so history survives deletion of the row it describes.
 
 Notation: `||` = exactly one (mandatory FK), `|o` = zero or one (nullable FK), `o{` = zero or many.
 
@@ -21,6 +21,16 @@ erDiagram
     users |o--o{ issues : assigned
     users |o--o{ pull_requests : opened
     users |o--o{ pull_requests : merged
+    pull_requests ||--o{ pr_reviews : receives
+    users |o--o{ pr_reviews : wrote
+    pull_requests ||--o{ pr_issue_links : closes
+    issues ||--o{ pr_issue_links : closed_by
+    projects ||--o{ labels : defines
+    issues ||--o{ issue_labels : tagged
+    labels ||--o{ issue_labels : applied
+    users |o--o{ audit_log : performed
+    projects ||--o{ contribution_metrics : tracks
+    users ||--o{ contribution_metrics : earns
 
     users {
         bigint id PK
@@ -100,5 +110,49 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz merged_at
+    }
+    pr_reviews {
+        bigint id PK
+        bigint pull_request_id FK
+        bigint reviewer_id FK
+        text verdict "approved, changes_requested or commented"
+        text body
+        timestamptz submitted_at
+    }
+    pr_issue_links {
+        bigint pull_request_id PK, FK
+        bigint issue_id PK, FK
+    }
+    labels {
+        bigint id PK
+        bigint project_id FK
+        text name "unique per project"
+        text color
+    }
+    issue_labels {
+        bigint issue_id PK, FK
+        bigint label_id PK, FK
+    }
+    audit_log {
+        bigint id PK
+        text entity_type
+        bigint entity_id
+        text action
+        text old_status
+        text new_status
+        bigint actor_id FK
+        jsonb details
+        timestamptz created_at
+    }
+    contribution_metrics {
+        bigint project_id PK, FK
+        bigint user_id PK, FK
+        int commits
+        int prs_opened
+        int prs_merged
+        int reviews_given
+        int issues_closed
+        numeric score
+        timestamptz refreshed_at
     }
 ```
