@@ -1,6 +1,6 @@
 -- CodeCollab core schema (P1-03): the eight core tables.
 -- The remaining six tables and the full constraint pass come in 02_rest.sql (P1-05).
--- ON DELETE choices here are provisional; P1-08 finalises and justifies them.
+-- ON DELETE choices follow docs/on_delete.md (P!-08).
 
 BEGIN;
 
@@ -22,7 +22,7 @@ CREATE TABLE projects (
     description  TEXT,
     status       TEXT        NOT NULL DEFAULT 'active'
                  CHECK (status IN ('active', 'archived')),
-    mentor_id    BIGINT      REFERENCES users (id) ON DELETE SET NULL,
+    mentor_id    BIGINT      REFERENCES users (id) ON DELETE RESTRICT,
     created_by   BIGINT      REFERENCES users (id) ON DELETE SET NULL,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
