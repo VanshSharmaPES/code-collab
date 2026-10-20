@@ -8,6 +8,7 @@ import {
   getSessionKey,
   isSessionRole,
   readSession,
+  requireSessionOr,
   sessionCookieOptions,
   signSession,
   toSessionPayload,
@@ -140,4 +141,17 @@ test("readSession returns the session for a valid token and secret, null for a b
   assert.deepEqual(await readSession(token, secret), { userId: "9", role: "mentor" });
   assert.equal(await readSession(`${token}x`, secret), null);
   assert.equal(await readSession(token, randomBytes(32).toString("base64")), null, "wrong secret");
+});
+
+test("requireSessionOr returns a valid session and denies when there is none", () => {
+  const session = { userId: "3", role: "student" } as const;
+  assert.deepEqual(requireSessionOr(session, () => assert.fail("must not deny")), session);
+
+  let denied = 0;
+  const deny = (): never => {
+    denied += 1;
+    throw new Error("redirected");
+  };
+  assert.throws(() => requireSessionOr(null, deny), /redirected/);
+  assert.equal(denied, 1);
 });
