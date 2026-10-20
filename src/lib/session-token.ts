@@ -21,6 +21,11 @@ export function toSessionPayload(userId: unknown, role: unknown): SessionPayload
   return { userId, role };
 }
 
+// Returns the session, or calls `deny` (e.g. a redirect, which never returns) when absent.
+export function requireSessionOr(session: SessionPayload | null, deny: () => never): SessionPayload {
+  return session ?? deny();
+}
+
 // Throws a message that never contains the secret itself. The secret is passed in
 // explicitly (callers use process.env.SESSION_SECRET) so nothing is read implicitly.
 export function getSessionKey(secret: string | undefined): Uint8Array {
