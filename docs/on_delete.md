@@ -41,6 +41,6 @@ Users are never meant to be hard-deleted by the application. Accounts are deacti
 
 `audit_log.entity_id` is deliberately not a foreign key. One column refers to four different tables, so the history survives the deletion of the row it describes.
 
-Totals: 11 CASCADE for containment or junction rows, 2 CASCADE for derived data, 11 SET NULL, 1 RESTRICT.
+Totals: 15 CASCADE (13 containment or junction, 2 derived data), 9 SET NULL, 1 RESTRICT.
 
 Deleting a project cascades through teams, repositories, commits, issues, pull requests, reviews, links, labels and metrics. For normal use a project is archived (`status = 'archived'`), not deleted.

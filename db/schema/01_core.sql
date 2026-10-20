@@ -1,6 +1,6 @@
 -- CodeCollab core schema (P1-03): the eight core tables.
 -- The remaining six tables and the full constraint pass come in 02_rest.sql (P1-05).
--- ON DELETE choices follow docs/on_delete.md (P!-08).
+-- ON DELETE choices follow docs/on_delete.md (P1-08).
 
 BEGIN;
 
