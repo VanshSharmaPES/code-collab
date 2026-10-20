@@ -11,3 +11,8 @@
 
 ## Secrets
 - Never commit `.env`. Add new variables to `.env.example` with placeholder values.
+
+## Running the app locally
+- `npm install`, then `cp .env.example .env` if you have no `.env` yet (database setup is in `db/setup.md`).
+- `npm run dev` serves http://localhost:3001.
+- Before opening a PR: `npm run lint`, `npx tsc --noEmit` and `npm run build` should all pass.
