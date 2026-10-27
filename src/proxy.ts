@@ -11,4 +11,4 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/issues", "/issues/:path*"] };
+export const config = { matcher: ["/issues", "/issues/:path*", "/pull-requests", "/pull-requests/:path*"] };
