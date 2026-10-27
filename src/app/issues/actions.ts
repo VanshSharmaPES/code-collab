@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { parseId, parseIssueForm, type IssueFormState } from "@/lib/issue-input";
-import { RepositoryNotFoundError, createIssue, updateIssue } from "@/lib/issues";
+import { MirroredIssueError, RepositoryNotFoundError, createIssue, updateIssue } from "@/lib/issues";
 
 const SAVE_FAILED = "The issue could not be saved right now. Please try again.";
 
@@ -16,6 +16,9 @@ export async function createIssueAction(_prev: IssueFormState, formData: FormDat
   try {
     id = await createIssue(parsed.repositoryId as string, parsed.input, session.userId);
   } catch (err) {
+    if (err instanceof MirroredIssueError) {
+      return { values: { ...parsed.input, body: parsed.input.body ?? "", repositoryId: parsed.repositoryId as string }, errors: { repositoryId: err.message } };
+    }
     if (err instanceof RepositoryNotFoundError) {
       return { values: { ...parsed.input, body: parsed.input.body ?? "", repositoryId: parsed.repositoryId as string }, errors: { repositoryId: "That repository does not exist." } };
     }
@@ -35,6 +38,7 @@ export async function updateIssueAction(issueId: string, _prev: IssueFormState, 
   try {
     if (!(await updateIssue(id, parsed.input, session.userId))) return { message: "That issue no longer exists." };
   } catch (err) {
+    if (err instanceof MirroredIssueError) return { message: err.message };
     console.error("Update issue failed:", err instanceof Error ? err.message : err);
     return { values: { ...parsed.input, body: parsed.input.body ?? "", repositoryId: "" }, message: SAVE_FAILED };
   }

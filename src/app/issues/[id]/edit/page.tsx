@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { parseId } from "@/lib/issue-input";
-import { getIssue, type IssueRow } from "@/lib/issues";
+import { MIRRORED_READ_ONLY_MESSAGE, canEditIssue, getIssue, type IssueRow } from "@/lib/issues";
 import { updateIssueAction } from "../../actions";
 import { IssueForm } from "../../issue-form";
 
@@ -25,6 +26,14 @@ export default async function EditIssuePage({ params }: { params: Promise<{ id: 
     );
   }
   if (issue === null) notFound();
+  if (!canEditIssue(issue)) {
+    return (
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+        <p role="alert" className="text-red-700 dark:text-red-400">{MIRRORED_READ_ONLY_MESSAGE}</p>
+        <p className="mt-4 text-sm"><Link href={`/issues/${issue.id}`} className="underline">← Back to the issue</Link></p>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">

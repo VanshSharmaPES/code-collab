@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { parseId } from "@/lib/issue-input";
-import { getIssue, type IssueRow } from "@/lib/issues";
+import { MIRRORED_READ_ONLY_MESSAGE, canEditIssue, getIssue, type IssueRow } from "@/lib/issues";
 import { formatDate, formatLabel } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Issue | CodeCollab" };
@@ -31,8 +31,11 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
       <p className="text-sm"><Link href="/issues" className="underline">← All issues</Link></p>
       <div className="mt-4 flex items-start justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">#{issue.number} {issue.title}</h1>
-        <Link href={`/issues/${issue.id}/edit`} className="shrink-0 rounded border border-zinc-400 px-3 py-1 text-sm">Edit</Link>
+        {canEditIssue(issue) && (
+          <Link href={`/issues/${issue.id}/edit`} className="shrink-0 rounded border border-zinc-400 px-3 py-1 text-sm">Edit</Link>
+        )}
       </div>
+      {!canEditIssue(issue) && <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{MIRRORED_READ_ONLY_MESSAGE}</p>}
       <dl className="mt-4 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-1 text-sm">
         <dt className="font-medium">Repository</dt><dd>{issue.project_name} / {issue.repository_name}</dd>
         <dt className="font-medium">Status</dt><dd className="capitalize">{formatLabel(issue.status)}</dd>

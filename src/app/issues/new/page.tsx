@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireSession } from "@/lib/session";
-import { listRepositories, type RepositoryOption } from "@/lib/issues";
+import { listWritableRepositories, type RepositoryOption } from "@/lib/issues";
 import { createIssueAction } from "../actions";
 import { IssueForm } from "../issue-form";
 
@@ -10,7 +10,7 @@ export default async function NewIssuePage() {
   await requireSession();
   let repositories: RepositoryOption[] | null = null;
   try {
-    repositories = await listRepositories();
+    repositories = await listWritableRepositories();
   } catch (err) {
     console.error("New issue page: could not load repositories:", err instanceof Error ? err.message : err);
   }
