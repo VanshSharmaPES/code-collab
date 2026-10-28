@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Pull request | CodeCollab" };
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function PullRequestDetailPage({ params, searchParams }: Props) {
-  await requireSession();
+  const session = await requireSession();
   const id = parseId((await params).id);
   if (id === null) notFound();
   const { error } = await searchParams;
@@ -21,7 +21,7 @@ export default async function PullRequestDetailPage({ params, searchParams }: Pr
 
   let pr: PullRequestRow | null;
   try {
-    pr = await getPullRequest(id);
+    pr = await getPullRequest(id, session.userId);
   } catch (err) {
     console.error("Pull request page: could not load the pull request:", err instanceof Error ? err.message : err);
     return (

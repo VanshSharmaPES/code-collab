@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Pull requests | CodeCollab" };
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function PullRequestsPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireSession();
+  const session = await requireSession();
   const sp = await searchParams;
   const repositoryId = typeof sp.repository === "string" ? parseId(sp.repository) : null;
   const status = typeof sp.status === "string" && isPullRequestStatus(sp.status) ? sp.status : null;
@@ -21,9 +21,9 @@ export default async function PullRequestsPage({ searchParams }: { searchParams:
   let data: { pullRequests: PullRequestRow[]; total: number; repositories: RepositoryOption[] } | null = null;
   try {
     const [pullRequests, total, repositories] = await Promise.all([
-      listPullRequests(filters, page, PAGE_SIZE),
-      countPullRequests(filters),
-      listRepositories(),
+      listPullRequests(filters, page, PAGE_SIZE, session.userId),
+      countPullRequests(filters, session.userId),
+      listRepositories(session.userId),
     ]);
     data = { pullRequests, total, repositories };
   } catch (err) {
