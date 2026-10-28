@@ -81,3 +81,15 @@ test("the runners pass the pipeline through and return the rows", async () => {
   assert.deepEqual(seen[0], monthlyActivityPipeline({ repo: "a/b" }));
   assert.deepEqual(await monthlyActivity({ aggregate: () => ({ toArray: async () => [] }) }), []); // empty result
 });
+
+test("a filter value that is not a plain string is refused, so a query operator cannot be smuggled into $match", () => {
+  const hostile: unknown[] = [{ $ne: null }, { $regex: ".*" }, { $gt: "" }, ["a/b"], 1, true, null, "", "a\0b"];
+  for (const bad of hostile) {
+    assert.throws(() => monthlyActivityPipeline({ repo: bad as string }), TypeError, JSON.stringify(bad));
+    assert.throws(() => topFilesPipeline({ repo: bad as string }), TypeError, JSON.stringify(bad));
+    assert.throws(() => monthlyEventsPipeline({ repositoryId: bad as string }), TypeError, JSON.stringify(bad));
+    assert.throws(() => monthlyEventsPipeline({ type: bad as string }), TypeError, JSON.stringify(bad));
+  }
+  assert.equal(first(monthlyActivityPipeline({ repo: "$ne" })).repo, "$ne"); // a string that merely looks like an operator stays an exact value
+  assert.equal(first(monthlyEventsPipeline({ repositoryId: "4" })).repositoryId, "4");
+});

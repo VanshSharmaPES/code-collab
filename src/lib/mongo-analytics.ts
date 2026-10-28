@@ -27,6 +27,13 @@ export const MAX_TOP_FILES = 500;
 
 const MONTH = (field: string) => ({ $dateToString: { format: "%Y-%m", date: field, timezone: "UTC" } });
 
+// Filter values go into $match as plain values. A string is always an exact match, but an object such as
+// { $ne: null } or { $regex: ".*" } would be read by MongoDB as an operator. The types say string; this checks at run time.
+function exactString(value: unknown, name: string): string {
+  if (typeof value !== "string" || value === "" || value.includes("\0")) throw new TypeError(`${name} must be a non-empty string.`);
+  return value;
+}
+
 function dateRange(since?: Date, until?: Date): Record<string, unknown> {
   for (const d of [since, until]) if (d !== undefined && (!(d instanceof Date) || Number.isNaN(d.getTime()))) throw new RangeError("since and until must be valid dates.");
   if (since && until && since >= until) throw new RangeError("since must be before until.");
@@ -42,7 +49,7 @@ const dedupeBy = (key: Record<string, string>): Pipeline => [
 function commitMatch(filter: AnalyticsFilter, extra: Record<string, unknown> = {}): Pipeline {
   return [{
     $match: {
-      repo: filter.repo !== undefined ? filter.repo : { $type: "string" },
+      repo: filter.repo !== undefined ? exactString(filter.repo, "repo") : { $type: "string" },
       sha: { $type: "string" },
       committedAt: dateRange(filter.since, filter.until),
       ...extra,
@@ -110,8 +117,8 @@ export function monthlyEventsPipeline(filter: EventFilter = {}): Pipeline {
     {
       $match: {
         outboxId: { $type: "string" },
-        type: filter.type !== undefined ? filter.type : { $type: "string" },
-        ...(filter.repositoryId !== undefined ? { repositoryId: filter.repositoryId } : {}),
+        type: filter.type !== undefined ? exactString(filter.type, "type") : { $type: "string" },
+        ...(filter.repositoryId !== undefined ? { repositoryId: exactString(filter.repositoryId, "repositoryId") } : {}),
         occurredAt: dateRange(filter.since, filter.until),
       },
     },
