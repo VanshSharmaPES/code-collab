@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { parseId } from "@/lib/issue-input";
 import { parsePullRequestAction, type ActionErrorCode } from "@/lib/pull-request-input";
-import { PullRequestMirroredError, PullRequestNotFoundError, PullRequestStatusError, transitionPullRequest } from "@/lib/pull-requests";
+import { PullRequestMirroredError, PullRequestNotFoundError, PullRequestRuleError, PullRequestStatusError, transitionPullRequest } from "@/lib/pull-requests";
 
 // Server actions are public POST endpoints, so this one checks the session itself.
 export async function transitionPullRequestAction(formData: FormData): Promise<void> {
@@ -20,6 +20,10 @@ export async function transitionPullRequestAction(formData: FormData): Promise<v
     if (err instanceof PullRequestNotFoundError) redirect("/pull-requests");
     if (err instanceof PullRequestMirroredError) error = "mirrored";
     else if (err instanceof PullRequestStatusError) error = "status";
+    else if (err instanceof PullRequestRuleError) {
+      error = err.code;
+      if (err.code === "mergeRefused") console.error("Merge refused:", err.detail); // an unrecognised procedure message
+    }
     else {
       console.error("Pull request update failed:", err instanceof Error ? err.message : err);
       error = "failed";
