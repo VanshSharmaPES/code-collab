@@ -8,9 +8,11 @@
     "start": "next start --port 3001",
     "lint": "eslint",
     "test": "node --conditions=react-server --import tsx --test src/lib/*.test.ts scripts/*.test.ts",
-    "seed": "node --conditions=react-server --env-file-if-exists=.env --import tsx scripts/seed.ts"
+    "seed": "node --conditions=react-server --env-file-if-exists=.env --import tsx scripts/seed.ts",
+    "embed": "node --conditions=react-server --env-file-if-exists=.env --import tsx scripts/embed.ts"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.2",
     "@node-rs/argon2": "^2.2.2",
     "jose": "^6.2.13",
     "next": "16.4.2",
