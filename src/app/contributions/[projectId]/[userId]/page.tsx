@@ -29,7 +29,7 @@ function Section({ title, shown, total, children }: { title: string; shown: numb
 }
 
 export default async function MemberContributionPage({ params }: { params: Promise<{ projectId: string; userId: string }> }) {
-  await requireSession();
+  const session = await requireSession();
   const p = await params;
   const projectId = parseId(p.projectId);
   const userId = parseId(p.userId);
@@ -37,7 +37,7 @@ export default async function MemberContributionPage({ params }: { params: Promi
 
   let data: MemberEvidence | null;
   try {
-    data = await getMemberEvidence(projectId, userId);
+    data = await getMemberEvidence(projectId, userId, session.userId);
   } catch (err) {
     console.error("Member contribution page: could not load the evidence:", err instanceof Error ? err.message : err);
     return (

@@ -27,11 +27,22 @@ export function commitUrl(githubUrl: string | null, sha: string): string | null 
   return m && /^[0-9a-f]{7,64}$/i.test(sha) ? `https://github.com/${m[1]}/${m[2]}/commit/${sha}` : null;
 }
 
+// Who may see what (least privilege; docs/on_delete.md only documents that a project is visible to its mentor, so the
+// rest is this module's reading of the three roles and is flagged for confirmation):
+//   * the mentor of a project sees every member of that project;
+//   * the lead of a team sees the members of that team;
+//   * everyone else sees only their own row, in projects where they are a team member.
+// A project shows up in the list only if the viewer is its mentor, a lead of one of its teams, or a member of one.
+// The viewer is always the signed-in user from the session, never a request parameter.
 export type ProjectOption = { id: string; name: string };
-export const LIST_PROJECTS_SQL = "SELECT id::text AS id, name FROM projects ORDER BY name, id";
+export const LIST_PROJECTS_SQL =
+  "SELECT p.id::text AS id, p.name FROM projects p WHERE p.mentor_id = $1::bigint OR EXISTS (" +
+  "SELECT 1 FROM teams t WHERE t.project_id = p.id AND (t.lead_id = $1::bigint OR EXISTS " +
+  "(SELECT 1 FROM team_members tm WHERE tm.team_id = t.id AND tm.user_id = $1::bigint))) ORDER BY p.name, p.id";
 
 // Members are the users on a team of the project (a person on two teams counts once). Every count is a correlated
-// subquery, so joining commits, pull requests and reviews cannot multiply rows into each other. $2 narrows to one user.
+// subquery, so joining commits, pull requests and reviews cannot multiply rows into each other.
+// $1 project, $2 narrows to one user (or NULL), $3 the viewer: only the members the viewer may see are returned.
 // Names only: the users table's email and password_hash are never selected here.
 export const MEMBER_CONTRIBUTIONS_SQL =
   "SELECT u.id::text AS user_id, u.full_name, u.role, " +
@@ -48,10 +59,13 @@ export const MEMBER_CONTRIBUTIONS_SQL =
   "  WHERE r.project_id = $1::bigint AND p.author_id = u.id AND p.status = 'merged' AND i.status = 'closed') AS issues_closed " +
   "FROM users u WHERE ($2::bigint IS NULL OR u.id = $2::bigint) AND u.id IN " +
   "(SELECT tm.user_id FROM teams t JOIN team_members tm ON tm.team_id = t.id WHERE t.project_id = $1::bigint) " +
+  "AND (EXISTS (SELECT 1 FROM projects vp WHERE vp.id = $1::bigint AND vp.mentor_id = $3::bigint) OR u.id = $3::bigint OR EXISTS " +
+  "(SELECT 1 FROM teams vt JOIN team_members vtm ON vtm.team_id = vt.id " +
+  "WHERE vt.project_id = $1::bigint AND vt.lead_id = $3::bigint AND vtm.user_id = u.id)) " +
   "ORDER BY u.full_name, u.id";
 
 // Evidence: the rows behind each count, newest first. $1 project, $2 user, $3 row limit. Each query uses the same
-// conditions as its count above.
+// conditions as its count above. They only run after the member query has confirmed the viewer may see that user.
 export const COMMIT_EVIDENCE_SQL =
   "SELECT c.id::text AS id, c.sha, c.message, c.additions, c.deletions, c.committed_at, r.name AS repository_name, r.github_url " +
   "FROM commits c JOIN repositories r ON r.id = c.repository_id " +
@@ -90,24 +104,25 @@ export type MemberEvidence = {
 
 const withScore = (row: MemberRow): MemberContribution => ({ ...row, score: contributionScore(row) });
 
-export async function listProjects(run: RunQuery<ProjectOption> = query<ProjectOption>): Promise<ProjectOption[]> {
-  return run(LIST_PROJECTS_SQL, []);
+export async function listProjects(viewerId: string, run: RunQuery<ProjectOption> = query<ProjectOption>): Promise<ProjectOption[]> {
+  return run(LIST_PROJECTS_SQL, [viewerId]);
 }
 
 // Highest score first; ties by name.
-export async function listMemberContributions(projectId: string, run: RunQuery<MemberRow> = query<MemberRow>): Promise<MemberContribution[]> {
-  const rows = (await run(MEMBER_CONTRIBUTIONS_SQL, [projectId, null])).map(withScore);
+export async function listMemberContributions(projectId: string, viewerId: string, run: RunQuery<MemberRow> = query<MemberRow>): Promise<MemberContribution[]> {
+  const rows = (await run(MEMBER_CONTRIBUTIONS_SQL, [projectId, null, viewerId])).map(withScore);
   return rows.sort((a, b) => b.score - a.score || a.full_name.localeCompare(b.full_name));
 }
 
-// Null when the user is not a member of the project.
+// Null when the user is not a member of the project, or the viewer may not see them (the page shows a 404 for both).
 export async function getMemberEvidence(
   projectId: string,
   userId: string,
+  viewerId: string,
   run: RunQuery<never> = query as RunQuery<never>,
 ): Promise<MemberEvidence | null> {
   const q = <T>(text: string, params: readonly unknown[]) => (run as unknown as RunQuery<T>)(text, params);
-  const row = (await q<MemberRow>(MEMBER_CONTRIBUTIONS_SQL, [projectId, userId]))[0];
+  const row = (await q<MemberRow>(MEMBER_CONTRIBUTIONS_SQL, [projectId, userId, viewerId]))[0];
   if (!row) return null;
   const args = [projectId, userId, EVIDENCE_LIMIT];
   const [commits, pullRequests, reviews, issues] = await Promise.all([

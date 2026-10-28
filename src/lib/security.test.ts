@@ -13,7 +13,7 @@ import { PR_ACTIONS, PR_TRANSITIONS, isPullRequestStatus, parsePullRequestAction
 import { parsePage } from "./format";
 import { countIssues, createIssue, getIssue, listIssues, updateIssue, CREATE_ISSUE_SQL, GET_ISSUE_SQL, LIST_ISSUES_SQL, UPDATE_ISSUE_SQL } from "./issues";
 import {
-  GET_PULL_REQUEST_SQL, LIST_PULL_REQUESTS_SQL, TRANSITION_PULL_REQUEST_SQL,
+  APPROVE_PULL_REQUEST_SQL, GET_PULL_REQUEST_SQL, LIST_PULL_REQUESTS_SQL, MERGE_PULL_REQUEST_SQL, PULL_REQUEST_STATE_SQL, TRANSITION_PULL_REQUEST_SQL,
   countPullRequests, getPullRequest, listPullRequests, transitionPullRequest,
 } from "./pull-requests";
 import { MEMBER_CONTRIBUTIONS_SQL, getMemberEvidence, listMemberContributions } from "./contributions";
@@ -89,8 +89,8 @@ test("hostile filter, id and actor values reach every read and write only as par
       [GET_ISSUE_SQL, "getIssue", (run) => getIssue(p, run)],
       [LIST_PULL_REQUESTS_SQL, "listPullRequests", (run) => listPullRequests({ repositoryId: p, status: p }, 1, 25, run)],
       [GET_PULL_REQUEST_SQL, "getPullRequest", (run) => getPullRequest(p, run)],
-      [MEMBER_CONTRIBUTIONS_SQL, "listMemberContributions", (run) => listMemberContributions(p, run)],
-      [MEMBER_CONTRIBUTIONS_SQL, "getMemberEvidence", (run) => getMemberEvidence(p, p, run)],
+      [MEMBER_CONTRIBUTIONS_SQL, "listMemberContributions", (run) => listMemberContributions(p, p, run)],
+      [MEMBER_CONTRIBUTIONS_SQL, "getMemberEvidence", (run) => getMemberEvidence(p, p, p, run)],
     ];
     for (const [sql, name, call] of checks) {
       const r = recorder();
@@ -100,13 +100,23 @@ test("hostile filter, id and actor values reach every read and write only as par
       // Short numeric look-alikes such as " 1" are legitimate substrings of any SQL text, so only syntax-bearing payloads are checked.
       if (/[;'"]/.test(p)) for (const c of r.calls) assert.ok(!c.text.includes(p), `${name} SQL text must not contain the payload`);
     }
-    const t = recorder([{ id: "1", mirrored: false, status: "open" }]);
-    await transitionPullRequest(p, "approve", p, t.run);
-    assert.equal(t.calls[0].text, TRANSITION_PULL_REQUEST_SQL);
-    if (/[;'"]/.test(p)) assert.ok(!t.calls[0].text.includes(p));
-    assert.equal(t.calls[0].params[0], p);
-    assert.equal(t.calls[0].params[3], p);
-    assert.ok(Array.isArray(t.calls[0].params[2])); // allowed statuses are an array parameter, not SQL text
+    // Every pull request action takes its own path to the database; the hostile id and actor are parameters on each.
+    const closeRun = recorder([{ id: "1", mirrored: false, status: "open" }]);
+    await transitionPullRequest(p, "close", p, closeRun.run);
+    assert.equal(closeRun.calls[0].text, TRANSITION_PULL_REQUEST_SQL);
+    assert.deepEqual([closeRun.calls[0].params[0], closeRun.calls[0].params[3]], [p, p]);
+    assert.ok(Array.isArray(closeRun.calls[0].params[2])); // allowed statuses are an array parameter, not SQL text
+
+    const approveRun = recorder([{ reviewed: "1", updated: "1" }]);
+    await transitionPullRequest(p, "approve", p, approveRun.run);
+    assert.equal(approveRun.calls[0].text, APPROVE_PULL_REQUEST_SQL);
+    assert.deepEqual(approveRun.calls[0].params, [p, p]);
+
+    const mergeRun = recorder([{ id: null, mirrored: false, status: "approved" }]);
+    await transitionPullRequest(p, "merge", p, mergeRun.run);
+    assert.deepEqual(mergeRun.calls.map((c) => c.text), [PULL_REQUEST_STATE_SQL, MERGE_PULL_REQUEST_SQL]);
+    assert.deepEqual(mergeRun.calls[1].params, [p, p]);
+    if (/[;'"]/.test(p)) for (const r of [closeRun, approveRun, mergeRun]) for (const c of r.calls) assert.ok(!c.text.includes(p));
   }
   const c = recorder([{ n: 1 }]);
   await countIssues({ repositoryId: "1' OR '1'='1", status: null }, c.run);
@@ -217,7 +227,7 @@ test("forms cannot carry a role, an author or a repository change: unknown and p
   }
 });
 
-test("pull request status changes cannot leave merged, and each action only starts from its listed statuses", () => {
+test("pull request status changes cannot leave merged; approve writes a review and merge is the database procedure", () => {
   for (const a of PR_ACTIONS) {
     assert.ok(!PR_TRANSITIONS[a].from.includes("merged"), `${a} must not start from merged`);
   }
@@ -225,6 +235,9 @@ test("pull request status changes cannot leave merged, and each action only star
   assert.deepEqual(PR_TRANSITIONS.approve.from, ["open"]);
   assert.match(TRANSITION_PULL_REQUEST_SQL, /pr\.status = ANY\(\$3::text\[\]\)/);
   assert.match(TRANSITION_PULL_REQUEST_SQL, /r\.github_url IS NULL/);
+  assert.match(TRANSITION_PULL_REQUEST_SQL, /\$2::text IN \('open', 'closed'\)/); // the generic statement can never set merged or approved
+  assert.match(APPROVE_PULL_REQUEST_SQL, /INSERT INTO pr_reviews/); // approval is a real review, so the self-review trigger applies
+  assert.equal(MERGE_PULL_REQUEST_SQL, "CALL merge_pull_request($1::bigint, $2::bigint)");
 });
 
 // ---------------------------------------------------------------- failure cases for configuration and exposure

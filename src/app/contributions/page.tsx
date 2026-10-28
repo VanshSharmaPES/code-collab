@@ -9,15 +9,15 @@ export const metadata: Metadata = { title: "Contributions | CodeCollab" };
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function ContributionsPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireSession();
+  const session = await requireSession();
   const sp = await searchParams;
   const requested = typeof sp.project === "string" ? parseId(sp.project) : null;
 
   let data: { projects: ProjectOption[]; project: ProjectOption | null; members: MemberContribution[] } | null = null;
   try {
-    const projects = await listProjects();
+    const projects = await listProjects(session.userId);
     const project = projects.find((p) => p.id === requested) ?? projects[0] ?? null;
-    data = { projects, project, members: project ? await listMemberContributions(project.id) : [] };
+    data = { projects, project, members: project ? await listMemberContributions(project.id, session.userId) : [] };
   } catch (err) {
     console.error("Contributions page: could not load contributions:", err instanceof Error ? err.message : err);
   }
