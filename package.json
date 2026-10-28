@@ -10,7 +10,8 @@
     "test": "node --conditions=react-server --import tsx --test src/lib/*.test.ts scripts/*.test.ts",
     "seed": "node --conditions=react-server --env-file-if-exists=.env --import tsx scripts/seed.ts",
     "ingest": "node --env-file-if-exists=.env --import tsx scripts/ingest.ts",
-    "mongo:setup": "node --env-file-if-exists=.env --import tsx scripts/mongo-setup.ts"
+    "mongo:setup": "node --env-file-if-exists=.env --import tsx scripts/mongo-setup.ts",
+    "outbox": "node --env-file-if-exists=.env --import tsx scripts/outbox-worker.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
