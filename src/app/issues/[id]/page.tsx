@@ -5,13 +5,15 @@ import { requireSession } from "@/lib/session";
 import { parseId } from "@/lib/issue-input";
 import { MIRRORED_READ_ONLY_MESSAGE, canEditIssue, getIssue, type IssueRow } from "@/lib/issues";
 import { formatDate, formatLabel } from "@/lib/format";
+import { CommentThread, commentErrorMessage } from "../../comments/comment-thread";
 
 export const metadata: Metadata = { title: "Issue | CodeCollab" };
 
-export default async function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function IssueDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const session = await requireSession();
   const id = parseId((await params).id);
   if (id === null) notFound();
+  const commentError = commentErrorMessage((await searchParams).commentError);
 
   let issue: IssueRow | null;
   try {
@@ -50,6 +52,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
       <div className="mt-6 whitespace-pre-wrap break-words rounded border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         {issue.body ?? <span className="text-zinc-500">No description.</span>}
       </div>
+      <CommentThread targetType="issue" targetId={issue.id} viewerId={session.userId} error={commentError} />
     </main>
   );
 }
