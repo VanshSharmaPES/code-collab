@@ -19,6 +19,7 @@ DECLARE
     v_project_id      BIGINT;
     v_project_status  TEXT;
     v_closed_ids      BIGINT[];
+    v_github_url        TEXT;
 BEGIN
     -- 1. Lock the PR row so two simultaneous merges cannot both succeed. A second caller
     --    waits here, then sees status = 'merged' and is rejected below.
@@ -43,13 +44,19 @@ BEGIN
         RAISE EXCEPTION 'merge_pull_request: pull request % has an unresolved change request', p_pr_id;
     END IF;
 
-    SELECT r.project_id, p.status INTO v_project_id, v_project_status
+    SELECT r.project_id, p.status, r.github_url INTO v_project_id, v_project_status, v_github_url
     FROM repositories r JOIN projects p ON p.id = r.project_id
     WHERE r.id = v_pr.repository_id;
+
 
     IF v_project_status <> 'active' THEN
         RAISE EXCEPTION 'merge_pull_request: project % is %, merging is disabled', v_project_id, v_project_status;
     END IF;
+
+    IF v_github_url IS NOT NULL THEN
+        RAISE EXCEPTION 'merge_pull_request: pull request % belongs to a GitHub mirror and cannot be merged here', p_pr_id;
+    END IF;
+
 
     -- Only a team lead of the project or its mentor may merge.
     IF NOT (EXISTS (SELECT 1 FROM teams WHERE project_id = v_project_id AND lead_id = p_merger_id)
@@ -62,6 +69,8 @@ BEGIN
     -- richer audit row, so the same change is not logged twice. The setting lasts only
     -- until the end of this transaction.
     PERFORM set_config('codecollab.merging', 'on', true);
+    -- Record the merger as the actor, so outbox events (P2-10) carry who merged.
+    PERFORM set_config('codecollab.actor_id', p_merger_id::text, true);
 
     -- 3. Mark the PR merged.
     UPDATE pull_requests
