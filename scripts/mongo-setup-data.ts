@@ -1,11 +1,11 @@
 // The steps of the MongoDB setup (P2-09), kept apart from the runner so they can be tested without a server.
 // Create-only: nothing here drops, renames or deletes a collection, an index or a document.
-import { COLLECTIONS, INDEXES, type IndexSpec } from "../src/lib/mongo-config";
+import { COLLECTIONS, INDEXES, NOTIFICATION_VALIDATOR, type IndexSpec } from "../src/lib/mongo-config";
 
 // The part of the driver's Db that the setup uses; the real Db satisfies it.
 export type MongoDbLike = {
   listCollections(filter: object, options: { nameOnly: true }): { toArray(): Promise<{ name: string }[]> };
-  createCollection(name: string): Promise<unknown>;
+  createCollection(name: string, options?: Record<string, unknown>): Promise<unknown>;
   collection(name: string): { createIndex(keys: Record<string, 1 | -1>, options: Record<string, unknown>): Promise<unknown> };
 };
 
@@ -26,7 +26,7 @@ export async function runMongoSetup(db: MongoDbLike, apply: boolean, log: (line:
   const existing = new Set((await db.listCollections({}, { nameOnly: true }).toArray()).map((c) => c.name));
   for (const name of Object.values(COLLECTIONS)) {
     if (existing.has(name)) log(`  collection ${name}: exists`);
-    else if (apply) { await db.createCollection(name); log(`  collection ${name}: created`); }
+    else if (apply) { await (name === COLLECTIONS.notifications ? db.createCollection(name, { validator: NOTIFICATION_VALIDATOR }) : db.createCollection(name)); log(`  collection ${name}: created`); }
     else log(`  collection ${name}: would be created`);
   }
   for (const spec of INDEXES) {

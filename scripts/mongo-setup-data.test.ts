@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { COLLECTIONS, INDEXES, NOTIFICATION_TTL_INDEX } from "../src/lib/mongo-config";
+import { COLLECTIONS, INDEXES, NOTIFICATION_TTL_INDEX, NOTIFICATION_VALIDATOR } from "../src/lib/mongo-config";
 import { indexOptions, runMongoSetup, type MongoDbLike } from "./mongo-setup-data";
 
 type Call = [string, ...unknown[]];
@@ -10,7 +10,7 @@ function fakeDb(existing: string[], failIndex?: { name: string; code: number }) 
   const calls: Call[] = [];
   const db = {
     listCollections: () => ({ toArray: async () => existing.map((name) => ({ name })) }),
-    createCollection: async (name: string) => { calls.push(["createCollection", name]); },
+    createCollection: async (name: string, ...options: unknown[]) => { calls.push(["createCollection", name, ...options]); },
     collection: (name: string) => ({
       createIndex: async (keys: Record<string, 1 | -1>, options: Record<string, unknown>) => {
         calls.push(["createIndex", name, keys, options]);
@@ -54,6 +54,30 @@ test("the notifications TTL index is created on expiresAt with expireAfterSecond
   const ttl = calls.find((c) => c[0] === "createIndex" && (c[3] as { name: string }).name === NOTIFICATION_TTL_INDEX);
   assert.deepEqual(ttl, ["createIndex", "notifications", { expiresAt: 1 }, { name: NOTIFICATION_TTL_INDEX, expireAfterSeconds: 0 }]);
   assert.equal(calls.filter((c) => c[0] === "createIndex" && "expireAfterSeconds" in (c[3] as object)).length, 1); // no other TTL index
+});
+
+test("only the notifications collection is created with a validator; the other three are created as before", async () => {
+  const { db, calls } = fakeDb([]);
+  await runMongoSetup(db, true, () => {});
+  const created = calls.filter((c) => c[0] === "createCollection");
+  assert.deepEqual(created.find((c) => c[1] === COLLECTIONS.notifications), ["createCollection", "notifications", { validator: NOTIFICATION_VALIDATOR }]);
+  for (const name of [COLLECTIONS.activityEvents, COLLECTIONS.comments, COLLECTIONS.commitFiles]) {
+    assert.deepEqual(created.find((c) => c[1] === name), ["createCollection", name]); // no options at all
+  }
+  assert.equal(created.length, 4);
+});
+
+test("an existing notifications collection is left alone: no validator is added to it", async () => {
+  const { db, calls } = fakeDb(Object.values(COLLECTIONS));
+  await runMongoSetup(db, true, () => {});
+  assert.equal(calls.filter((c) => c[0] === "createCollection").length, 0); // the fake has no collMod, so any attempt would throw
+});
+
+test("the notifications validator requires createdAt and expiresAt, when present, to be BSON dates", () => {
+  const schema = NOTIFICATION_VALIDATOR.$jsonSchema;
+  assert.equal(schema.bsonType, "object");
+  assert.deepEqual(schema.properties, { createdAt: { bsonType: "date" }, expiresAt: { bsonType: "date" } });
+  assert.ok(!("required" in schema)); // presence is not enforced: no writer exists yet to show every document has both
 });
 
 test("unique indexes are created as unique, and plain ones are not", () => {
