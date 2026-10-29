@@ -49,3 +49,13 @@
 - `npm run outbox -- --apply` delivers due rows to the `activity_events` collection (run `npm run mongo:setup -- --apply` first; this task needs P2-09). It keeps running until Ctrl-C; add `--once` to deliver what is due and exit, and `--interval=MS` to change the polling pause.
 - Delivery is at-least-once and safe to repeat: each event is stored under its outbox row id (unique index `activity_outbox_id_unique`), and a repeat leaves the stored event unchanged. A failed row is retried after 5 s, 10 s, 20 s and so on (at most an hour apart) and is parked after 10 failures; nothing is marked delivered unless MongoDB accepted it. If MongoDB is down the worker stops each batch after 3 failures in a row.
 - It uses the same local-only guards as the seed (PostgreSQL database `codecollab`) and `mongo:setup` (MongoDB database `codecollab`).
+
+## MongoDB analytics (P2-11)
+- `npm run load:commit-files` (dry run) / `-- --apply` loads `tmp/ingest/*.commit-files.jsonl` (written by the ingestion, P2-06) into the `commit_files` collection, one document per commit. Run `npm run mongo:setup -- --apply` first (P2-09). Reruns add only commits that are not there yet.
+- `npm run analytics -- <report> [options]` is read-only and prints a table:
+  - `monthly`: per repository and month, the number of commits, files changed, lines added and removed, and distinct authors (from `commit_files`).
+  - `files`: the files touched by the most commits (`--limit=1..500`, default 20).
+  - `events`: status-change events from the outbox worker (P2-10) per month and type (`activity_events`; filter with `--repository=ID`).
+  - Options: `--repo=owner/name` (monthly, files), `--since=YYYY-MM-DD` (included), `--until=YYYY-MM-DD` (not included).
+- Conventions: a month is a UTC calendar month (a commit at 23:30 UTC on 31 January counts for January). Documents with a missing or non-date timestamp, or without a repo or sha, are left out. Duplicates are counted once: by `(repo, sha)` for commits and by the outbox id for events, in addition to the unique indexes of P2-09.
+- The pipeline builders are in `src/lib/mongo-analytics.ts`. `npm test` checks their shape without a server. To check them against a real MongoDB too, start a local one and run `TEST_MONGO_URL=mongodb://127.0.0.1:27017 npm test`; the test uses its own temporary databases (`cc_analytics_test_*`) and drops only those.
