@@ -70,7 +70,7 @@ export default async function DashboardPage() {
 
           <section>
             <h2 className={H2}>Stale high-priority issues</h2>
-            <p className={NOTE}>High and critical issues that are still open or in progress and have not changed for more than {STALE_DAYS} days. Critical first, then the longest neglected (at most 50).</p>
+            <p className={NOTE}>High and critical issues that are still open or in progress and have not changed for more than {STALE_DAYS} days. Critical first, then the longest neglected (showing the first 50 results).</p>
             {staleIssues.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">None.</p> : (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
@@ -96,7 +96,7 @@ export default async function DashboardPage() {
 
           <section>
             <h2 className={H2}>Members who never review</h2>
-            <p className={NOTE}>Team members with no review on any pull request of their project, most active first (at most 50).</p>
+            <p className={NOTE}>Team members with no review on any pull request of their project, most active first (showing the first 50 results).</p>
             {nonReviewers.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Everyone has reviewed at least once.</p> : (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
