@@ -29,3 +29,7 @@
 - **Pull request actions:** any participant who is not the author can approve (the self-review trigger refuses the author); the author, a team lead or the mentor can close and reopen; only a team lead or the mentor can merge (enforced by `merge_pull_request`).
 - This is the least-privilege reading of the three roles. The repository only documents that a project is visible to its mentor (`docs/on_delete.md`), so please confirm or correct the rule. Not covered: the `/users` directory (it lists every user, as the week 1 checkpoint required) and role-based API route handlers.
 - To check the rules against a real PostgreSQL: `TEST_PG_ADMIN_URL=postgresql://USER:PASSWORD@localhost:5433/postgres npm test` runs `scripts/project-access.integration.test.ts` in its own temporary database. It also exercises the self-review trigger and the merge procedure when `db/schema/03` and `04` are present.
+## Comment threads (P2-12)
+
+- Comments are stored as flat MongoDB documents. Replies reference their parent through `parentId`; the UI renders the reply hierarchy. Reply nesting is capped at a maximum depth of 5.
+- Reading and writing comments requires authentication and project-participant access, following the same access rules as issue and pull-request pages.
