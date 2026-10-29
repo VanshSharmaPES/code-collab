@@ -1,0 +1,41 @@
+Gather Merge  (cost=5306.46..5383.05 rows=666 width=86) (actual time=23.133..27.550 rows=388 loops=1)
+  Workers Planned: 1
+  Workers Launched: 1
+  Buffers: shared hit=2319
+  ->  Sort  (cost=4306.45..4308.12 rows=666 width=86) (actual time=19.735..19.762 rows=194 loops=2)
+        Sort Key: ((i.priority = 'critical'::text)) DESC, i.updated_at, i.id
+        Sort Method: quicksort  Memory: 74kB
+        Buffers: shared hit=2319
+        Worker 0:  Sort Method: quicksort  Memory: 25kB
+        ->  Hash Left Join  (cost=6.03..4275.22 rows=666 width=86) (actual time=8.579..19.307 rows=194 loops=2)
+              Hash Cond: (i.assignee_id = u.id)
+              Buffers: shared hit=2266
+              ->  Hash Join  (cost=2.67..4258.39 rows=666 width=78) (actual time=8.522..19.066 rows=194 loops=2)
+                    Hash Cond: (r.project_id = p.id)
+                    Buffers: shared hit=2264
+                    ->  Hash Join  (cost=1.34..4254.81 rows=666 width=64) (actual time=8.418..18.910 rows=194 loops=2)
+                          Hash Cond: (i.repository_id = r.id)
+                          Buffers: shared hit=2214
+                          ->  Parallel Seq Scan on issues i  (cost=0.00..4251.24 rows=666 width=64) (actual time=8.383..18.813 rows=194 loops=2)
+                                Filter: ((status = ANY ('{open,in_progress}'::text[])) AND (priority = ANY ('{high,critical}'::text[])) AND (updated_at < (now() - '14 days'::interval)))
+                                Rows Removed by Filter: 76806
+                                Buffers: shared hit=2213
+                          ->  Hash  (cost=1.15..1.15 rows=15 width=16) (actual time=0.032..0.033 rows=15 loops=1)
+                                Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                Buffers: shared hit=1
+                                ->  Seq Scan on repositories r  (cost=0.00..1.15 rows=15 width=16) (actual time=0.017..0.020 rows=15 loops=1)
+                                      Buffers: shared hit=1
+                    ->  Hash  (cost=1.15..1.15 rows=15 width=22) (actual time=0.036..0.036 rows=15 loops=2)
+                          Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                          Buffers: shared hit=2
+                          ->  Seq Scan on projects p  (cost=0.00..1.15 rows=15 width=22) (actual time=0.021..0.025 rows=15 loops=2)
+                                Buffers: shared hit=2
+              ->  Hash  (cost=2.60..2.60 rows=60 width=19) (actual time=0.068..0.068 rows=60 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 12kB
+                    Buffers: shared hit=2
+                    ->  Seq Scan on users u  (cost=0.00..2.60 rows=60 width=19) (actual time=0.020..0.045 rows=60 loops=1)
+                          Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=384
+Planning Time: 1.960 ms
+Execution Time: 27.819 ms

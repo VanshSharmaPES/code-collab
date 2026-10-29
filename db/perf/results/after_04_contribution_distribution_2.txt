@@ -1,0 +1,120 @@
+Aggregate  (cost=23186.99..23187.02 rows=1 width=200) (actual time=300.525..300.534 rows=1 loops=1)
+  Buffers: shared hit=9742
+  ->  Nested Loop  (cost=1550.71..23185.02 rows=15 width=32) (actual time=4.320..300.014 rows=57 loops=1)
+        Buffers: shared hit=9734
+        ->  Hash Join  (cost=5.64..8.62 rows=15 width=16) (actual time=0.357..0.486 rows=57 loops=1)
+              Hash Cond: (u.id = tm.user_id)
+              Buffers: shared hit=5
+              ->  Seq Scan on users u  (cost=0.00..2.60 rows=60 width=8) (actual time=0.010..0.034 rows=60 loops=1)
+                    Buffers: shared hit=2
+              ->  Hash  (cost=5.45..5.45 rows=15 width=16) (actual time=0.302..0.305 rows=57 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                    Buffers: shared hit=3
+                    ->  Hash Join  (cost=4.72..5.45 rows=15 width=16) (actual time=0.251..0.279 rows=57 loops=1)
+                          Hash Cond: (t.project_id = p.id)
+                          Buffers: shared hit=3
+                          ->  HashAggregate  (cost=3.39..3.96 rows=57 width=16) (actual time=0.174..0.187 rows=57 loops=1)
+                                Group Key: t.project_id, tm.user_id
+                                Batches: 1  Memory Usage: 24kB
+                                Buffers: shared hit=2
+                                ->  Hash Join  (cost=1.34..3.10 rows=57 width=16) (actual time=0.106..0.137 rows=57 loops=1)
+                                      Hash Cond: (tm.team_id = t.id)
+                                      Buffers: shared hit=2
+                                      ->  Seq Scan on team_members tm  (cost=0.00..1.57 rows=57 width=16) (actual time=0.009..0.014 rows=57 loops=1)
+                                            Buffers: shared hit=1
+                                      ->  Hash  (cost=1.15..1.15 rows=15 width=16) (actual time=0.019..0.020 rows=15 loops=1)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                            Buffers: shared hit=1
+                                            ->  Seq Scan on teams t  (cost=0.00..1.15 rows=15 width=16) (actual time=0.005..0.008 rows=15 loops=1)
+                                                  Buffers: shared hit=1
+                          ->  Hash  (cost=1.15..1.15 rows=15 width=8) (actual time=0.042..0.043 rows=15 loops=1)
+                                Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                Buffers: shared hit=1
+                                ->  Seq Scan on projects p  (cost=0.00..1.15 rows=15 width=8) (actual time=0.023..0.029 rows=15 loops=1)
+                                      Buffers: shared hit=1
+        ->  Result  (cost=1545.06..1545.07 rows=1 width=40) (actual time=5.252..5.252 rows=1 loops=57)
+              Buffers: shared hit=9729
+              InitPlan 1 (returns $3)
+                ->  Aggregate  (cost=48.19..48.20 rows=1 width=8) (actual time=3.437..3.438 rows=1 loops=57)
+                      Buffers: shared hit=1088
+                      ->  Nested Loop  (cost=0.42..45.22 rows=1187 width=0) (actual time=0.015..2.586 rows=17807 loops=57)
+                            Buffers: shared hit=1088
+                            ->  Seq Scan on repositories r  (cost=0.00..1.19 rows=1 width=8) (actual time=0.001..0.003 rows=1 loops=57)
+                                  Filter: (project_id = p.id)
+                                  Rows Removed by Filter: 14
+                                  Buffers: shared hit=57
+                            ->  Index Only Scan using idx_commits_repo_author on commits c  (cost=0.42..32.16 rows=1187 width=8) (actual time=0.011..1.217 rows=17807 loops=57)
+                                  Index Cond: ((repository_id = r.id) AND (author_id = u.id))
+                                  Heap Fetches: 0
+                                  Buffers: shared hit=1031
+              InitPlan 2 (returns $5)
+                ->  Aggregate  (cost=5.52..5.53 rows=1 width=8) (actual time=0.020..0.020 rows=1 loops=57)
+                      Buffers: shared hit=172
+                      ->  Nested Loop  (cost=0.29..5.51 rows=1 width=0) (actual time=0.014..0.017 rows=19 loops=57)
+                            Buffers: shared hit=172
+                            ->  Seq Scan on repositories r_1  (cost=0.00..1.19 rows=1 width=8) (actual time=0.002..0.002 rows=1 loops=57)
+                                  Filter: (project_id = p.id)
+                                  Rows Removed by Filter: 14
+                                  Buffers: shared hit=57
+                            ->  Index Only Scan using idx_pull_requests_repo_author on pull_requests p_1  (cost=0.29..4.32 rows=1 width=8) (actual time=0.008..0.009 rows=19 loops=57)
+                                  Index Cond: ((repository_id = r_1.id) AND (author_id = u.id) AND (status = 'merged'::text))
+                                  Heap Fetches: 0
+                                  Buffers: shared hit=115
+              InitPlan 3 (returns $7)
+                ->  Aggregate  (cost=1476.93..1476.94 rows=1 width=8) (actual time=1.716..1.716 rows=1 loops=57)
+                      Buffers: shared hit=4222
+                      ->  Hash Join  (cost=158.06..1476.61 rows=131 width=0) (actual time=0.416..1.639 rows=1448 loops=57)
+                            Hash Cond: (p_2.id = rv.pull_request_id)
+                            Buffers: shared hit=4222
+                            ->  Nested Loop  (cost=66.66..1370.86 rows=5467 width=8) (actual time=0.124..1.091 rows=5342 loops=43)
+                                  Buffers: shared hit=3734
+                                  ->  Seq Scan on repositories r_2  (cost=0.00..1.19 rows=1 width=8) (actual time=0.001..0.002 rows=1 loops=43)
+                                        Filter: (project_id = p.id)
+                                        Rows Removed by Filter: 14
+                                        Buffers: shared hit=43
+                                  ->  Bitmap Heap Scan on pull_requests p_2  (cost=66.66..1315.00 rows=5467 width=16) (actual time=0.117..0.618 rows=5342 loops=43)
+                                        Recheck Cond: (repository_id = r_2.id)
+                                        Heap Blocks: exact=3403
+                                        Buffers: shared hit=3691
+                                        ->  Bitmap Index Scan on idx_pull_requests_repo_author  (cost=0.00..65.30 rows=5467 width=0) (actual time=0.105..0.105 rows=5472 loops=43)
+                                              Index Cond: (repository_id = r_2.id)
+                                              Buffers: shared hit=288
+                            ->  Hash  (cost=66.82..66.82 rows=1966 width=8) (actual time=0.314..0.314 rows=1448 loops=57)
+                                  Buckets: 4096 (originally 2048)  Batches: 1 (originally 1)  Memory Usage: 141kB
+                                  Buffers: shared hit=488
+                                  ->  Index Only Scan using idx_pr_reviews_reviewer_pr on pr_reviews rv  (cost=0.42..66.82 rows=1966 width=8) (actual time=0.008..0.153 rows=1448 loops=57)
+                                        Index Cond: (reviewer_id = u.id)
+                                        Heap Fetches: 0
+                                        Buffers: shared hit=488
+              InitPlan 4 (returns $11)
+                ->  Aggregate  (cost=14.39..14.40 rows=1 width=8) (actual time=0.072..0.072 rows=1 loops=57)
+                      Buffers: shared hit=4247
+                      ->  Sort  (cost=14.38..14.38 rows=1 width=8) (actual time=0.068..0.068 rows=8 loops=57)
+                            Sort Key: l.issue_id
+                            Sort Method: quicksort  Memory: 25kB
+                            Buffers: shared hit=4247
+                            ->  Nested Loop  (cost=1.00..14.37 rows=1 width=8) (actual time=0.024..0.062 rows=8 loops=57)
+                                  Buffers: shared hit=4244
+                                  ->  Nested Loop  (cost=0.58..13.61 rows=1 width=8) (actual time=0.017..0.040 rows=8 loops=57)
+                                        Buffers: shared hit=2488
+                                        ->  Nested Loop  (cost=0.29..9.51 rows=1 width=8) (actual time=0.009..0.016 rows=19 loops=57)
+                                              Buffers: shared hit=331
+                                              ->  Seq Scan on repositories r_3  (cost=0.00..1.19 rows=1 width=8) (actual time=0.001..0.002 rows=1 loops=57)
+                                                    Filter: (project_id = p.id)
+                                                    Rows Removed by Filter: 14
+                                                    Buffers: shared hit=57
+                                              ->  Index Scan using idx_pull_requests_repo_author on pull_requests p_3  (cost=0.29..8.32 rows=1 width=16) (actual time=0.005..0.009 rows=19 loops=57)
+                                                    Index Cond: ((repository_id = r_3.id) AND (author_id = u.id) AND (status = 'merged'::text))
+                                                    Buffers: shared hit=274
+                                        ->  Index Only Scan using pr_issue_links_pkey on pr_issue_links l  (cost=0.29..4.09 rows=1 width=16) (actual time=0.001..0.001 rows=0 loops=1078)
+                                              Index Cond: (pull_request_id = p_3.id)
+                                              Heap Fetches: 0
+                                              Buffers: shared hit=2157
+                                  ->  Index Scan using issues_pkey on issues i  (cost=0.42..0.76 rows=1 width=8) (actual time=0.002..0.002 rows=1 loops=439)
+                                        Index Cond: (id = l.issue_id)
+                                        Filter: (status = 'closed'::text)
+                                        Buffers: shared hit=1756
+Planning:
+  Buffers: shared hit=978
+Planning Time: 4.063 ms
+Execution Time: 301.692 ms

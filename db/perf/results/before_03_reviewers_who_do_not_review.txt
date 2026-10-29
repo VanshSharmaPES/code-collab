@@ -1,0 +1,108 @@
+Sort  (cost=97239.49..97239.52 rows=11 width=64) (actual time=345.753..345.768 rows=15 loops=1)
+  Sort Key: ((SubPlan 1)) DESC, p.id, u.id
+  Sort Method: quicksort  Memory: 26kB
+  Buffers: shared hit=1299 read=34541
+  ->  Hash Right Anti Join  (cost=5545.22..97239.30 rows=11 width=64) (actual time=90.905..345.713 rows=15 loops=1)
+        Hash Cond: ((r.project_id = t.project_id) AND (rv.reviewer_id = tm.user_id))
+        Buffers: shared hit=1296 read=34541
+        ->  HashAggregate  (cost=5536.38..5542.68 rows=630 width=16) (actual time=69.913..69.924 rows=42 loops=1)
+              Group Key: r.project_id, rv.reviewer_id
+              Batches: 1  Memory Usage: 49kB
+              Buffers: shared hit=628 read=1330
+              ->  Hash Join  (cost=3026.34..5123.59 rows=82558 width=16) (actual time=22.723..59.872 rows=82558 loops=1)
+                    Hash Cond: (x.repository_id = r.id)
+                    Buffers: shared hit=628 read=1330
+                    ->  Hash Join  (cost=3025.00..4844.31 rows=82558 width=16) (actual time=22.690..48.377 rows=82558 loops=1)
+                          Hash Cond: (rv.pull_request_id = x.id)
+                          Buffers: shared hit=627 read=1330
+                          ->  Seq Scan on pr_reviews rv  (cost=0.00..1602.58 rows=82558 width=16) (actual time=0.009..8.384 rows=82558 loops=1)
+                                Buffers: shared read=777
+                          ->  Hash  (cost=2000.00..2000.00 rows=82000 width=16) (actual time=22.055..22.056 rows=82000 loops=1)
+                                Buckets: 131072  Batches: 1  Memory Usage: 4868kB
+                                Buffers: shared hit=627 read=553
+                                ->  Seq Scan on pull_requests x  (cost=0.00..2000.00 rows=82000 width=16) (actual time=0.010..10.092 rows=82000 loops=1)
+                                      Buffers: shared hit=627 read=553
+                    ->  Hash  (cost=1.15..1.15 rows=15 width=16) (actual time=0.018..0.019 rows=15 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                          Buffers: shared hit=1
+                          ->  Seq Scan on repositories r  (cost=0.00..1.15 rows=15 width=16) (actual time=0.012..0.014 rows=15 loops=1)
+                                Buffers: shared hit=1
+        ->  Hash  (cost=8.62..8.62 rows=15 width=64) (actual time=0.191..0.196 rows=57 loops=1)
+              Buckets: 1024  Batches: 1  Memory Usage: 14kB
+              Buffers: shared read=5
+              ->  Hash Join  (cost=5.64..8.62 rows=15 width=64) (actual time=0.155..0.180 rows=57 loops=1)
+                    Hash Cond: (u.id = tm.user_id)
+                    Buffers: shared read=5
+                    ->  Seq Scan on users u  (cost=0.00..2.60 rows=60 width=26) (actual time=0.009..0.019 rows=60 loops=1)
+                          Buffers: shared read=2
+                    ->  Hash  (cost=5.45..5.45 rows=15 width=38) (actual time=0.130..0.133 rows=57 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 12kB
+                          Buffers: shared read=3
+                          ->  Hash Join  (cost=4.72..5.45 rows=15 width=38) (actual time=0.101..0.119 rows=57 loops=1)
+                                Hash Cond: (t.project_id = p.id)
+                                Buffers: shared read=3
+                                ->  HashAggregate  (cost=3.39..3.96 rows=57 width=16) (actual time=0.063..0.070 rows=57 loops=1)
+                                      Group Key: t.project_id, tm.user_id
+                                      Batches: 1  Memory Usage: 24kB
+                                      Buffers: shared read=2
+                                      ->  Hash Join  (cost=1.34..3.10 rows=57 width=16) (actual time=0.038..0.052 rows=57 loops=1)
+                                            Hash Cond: (tm.team_id = t.id)
+                                            Buffers: shared read=2
+                                            ->  Seq Scan on team_members tm  (cost=0.00..1.57 rows=57 width=16) (actual time=0.008..0.011 rows=57 loops=1)
+                                                  Buffers: shared read=1
+                                            ->  Hash  (cost=1.15..1.15 rows=15 width=16) (actual time=0.014..0.015 rows=15 loops=1)
+                                                  Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                                  Buffers: shared read=1
+                                                  ->  Seq Scan on teams t  (cost=0.00..1.15 rows=15 width=16) (actual time=0.007..0.009 rows=15 loops=1)
+                                                        Buffers: shared read=1
+                                ->  Hash  (cost=1.15..1.15 rows=15 width=22) (actual time=0.018..0.018 rows=15 loops=1)
+                                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                      Buffers: shared read=1
+                                      ->  Seq Scan on projects p  (cost=0.00..1.15 rows=15 width=22) (actual time=0.009..0.010 rows=15 loops=1)
+                                            Buffers: shared read=1
+        SubPlan 1
+          ->  Aggregate  (cost=7848.16..7848.17 rows=1 width=8) (actual time=17.486..17.486 rows=1 loops=15)
+                Buffers: shared hit=105 read=32012
+                ->  Nested Loop  (cost=4047.03..7845.19 rows=1187 width=0) (actual time=6.876..16.605 rows=17795 loops=15)
+                      Buffers: shared hit=105 read=32012
+                      ->  Seq Scan on repositories r_1  (cost=0.00..1.19 rows=1 width=8) (actual time=0.001..0.003 rows=1 loops=15)
+                            Filter: (project_id = p.id)
+                            Rows Removed by Filter: 14
+                            Buffers: shared hit=15
+                      ->  Bitmap Heap Scan on commits c  (cost=4047.03..7832.14 rows=1187 width=8) (actual time=6.839..15.206 rows=17795 loops=15)
+                            Recheck Cond: ((author_id = u.id) AND (repository_id = r_1.id))
+                            Heap Blocks: exact=19439
+                            Buffers: shared hit=90 read=32012
+                            ->  BitmapAnd  (cost=4047.03..4047.03 rows=1187 width=0) (actual time=6.692..6.692 rows=0 loops=15)
+                                  Buffers: shared hit=66 read=12597
+                                  ->  Bitmap Index Scan on idx_commits_author  (cost=0.00..193.98 rows=17807 width=0) (actual time=0.451..0.451 rows=17795 loops=15)
+                                        Index Cond: (author_id = u.id)
+                                        Buffers: shared hit=29 read=219
+                                  ->  Bitmap Index Scan on commits_repository_id_sha_key  (cost=0.00..3848.05 rows=67667 width=0) (actual time=6.210..6.210 rows=67667 loops=15)
+                                        Index Cond: (repository_id = r_1.id)
+                                        Buffers: shared hit=37 read=12378
+        SubPlan 2
+          ->  Aggregate  (cost=486.64..486.65 rows=1 width=8) (actual time=0.877..0.877 rows=1 loops=15)
+                Buffers: shared hit=563 read=1194
+                ->  Nested Loop  (cost=189.14..486.40 rows=96 width=0) (actual time=0.333..0.808 rows=1442 loops=15)
+                      Buffers: shared hit=563 read=1194
+                      ->  Seq Scan on repositories r_2  (cost=0.00..1.19 rows=1 width=8) (actual time=0.002..0.002 rows=1 loops=15)
+                            Filter: (project_id = p.id)
+                            Rows Removed by Filter: 14
+                            Buffers: shared hit=15
+                      ->  Bitmap Heap Scan on pull_requests p_1  (cost=189.14..484.25 rows=96 width=8) (actual time=0.326..0.693 rows=1442 loops=15)
+                            Recheck Cond: ((author_id = u.id) AND (repository_id = r_2.id))
+                            Heap Blocks: exact=1198
+                            Buffers: shared hit=548 read=1194
+                            ->  BitmapAnd  (cost=189.14..189.14 rows=96 width=0) (actual time=0.316..0.316 rows=0 loops=15)
+                                  Buffers: shared hit=53 read=491
+                                  ->  Bitmap Index Scan on idx_pull_requests_author  (cost=0.00..23.09 rows=1439 width=0) (actual time=0.038..0.038 rows=1442 loops=15)
+                                        Index Cond: (author_id = u.id)
+                                        Buffers: shared hit=15 read=30
+                                  ->  Bitmap Index Scan on pull_requests_repository_id_number_key  (cost=0.00..165.42 rows=5467 width=0) (actual time=0.274..0.274 rows=5467 loops=15)
+                                        Index Cond: (repository_id = r_2.id)
+                                        Buffers: shared hit=38 read=461
+Planning:
+  Buffers: shared hit=552 read=64
+Planning Time: 2.805 ms
+Execution Time: 346.240 ms
