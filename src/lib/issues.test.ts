@@ -4,6 +4,7 @@ import {
   CREATE_ISSUE_SQL, GET_ISSUE_SQL, LIST_ISSUES_SQL, LIST_REPOSITORIES_SQL, LIST_WRITABLE_REPOSITORIES_SQL, MIRRORED_READ_ONLY_MESSAGE, MirroredIssueError, PAGE_SIZE,
   RepositoryNotFoundError, UPDATE_ISSUE_SQL, canEditIssue, countIssues, createIssue, listIssues, listWritableRepositories, updateIssue,
 } from "./issues";
+import { participantSql } from "./project-access";
 
 const input = { title: "t", body: null, status: "closed", priority: "low" } as const;
 
@@ -15,9 +16,9 @@ test("no query selects user emails or password hashes, or uses SELECT *", () => 
 
 test("filters and paging are bound parameters", async () => {
   let seen: readonly unknown[] = [];
-  await listIssues({ repositoryId: "4", status: "open" }, 3, async (_t, p) => { seen = p; return []; });
-  assert.deepEqual(seen, ["4", "open", PAGE_SIZE, 2 * PAGE_SIZE]);
-  assert.equal(await countIssues({ repositoryId: null, status: null }, async () => [{ n: 7 }]), 7);
+  await listIssues({ repositoryId: "4", status: "open" }, 3, "77", async (_t, p) => { seen = p; return []; });
+  assert.deepEqual(seen, ["4", "open", PAGE_SIZE, 2 * PAGE_SIZE, "77"]); // the last one is the viewer
+  assert.equal(await countIssues({ repositoryId: null, status: null }, "77", async () => [{ n: 7 }]), 7);
 });
 
 test("create: the number comes from the database, closed issues get closed_at, the author is a parameter", async () => {
@@ -79,13 +80,17 @@ test("create: no inserted row is reported as a missing repository, or as read-on
 });
 
 test("create only inserts into an existing repository without a github_url, and still numbers per repository", () => {
-  assert.match(CREATE_ISSUE_SQL, /HAVING EXISTS \(SELECT 1 FROM repositories WHERE id = \$1::bigint AND github_url IS NULL\) RETURNING id\)/);
+  // ...and only if the author ($6, the signed-in user) takes part in the repository's project: otherwise the repository "does not exist".
+  const taking = participantSql("$6", "repositories.project_id");
+  assert.ok(CREATE_ISSUE_SQL.includes(`HAVING EXISTS (SELECT 1 FROM repositories WHERE id = $1::bigint AND github_url IS NULL AND ${taking}) RETURNING id)`));
   assert.match(CREATE_ISSUE_SQL, /FROM issues WHERE repository_id = \$1::bigint HAVING/);
-  assert.match(CREATE_ISSUE_SQL, /\(SELECT github_url IS NOT NULL FROM repositories WHERE id = \$1::bigint\) AS mirrored$/);
+  assert.ok(CREATE_ISSUE_SQL.endsWith(`(SELECT github_url IS NOT NULL FROM repositories WHERE id = $1::bigint AND ${taking}) AS mirrored`));
 });
 
 test("update only touches issues whose repository has no github_url, and keeps the audit actor", async () => {
-  assert.match(UPDATE_ISSUE_SQL, /FROM \(SELECT set_config\('codecollab\.actor_id', \$6::text, true\)\) AS actor WHERE i\.id = \$1::bigint AND EXISTS \(SELECT 1 FROM repositories r WHERE r\.id = i\.repository_id AND r\.github_url IS NULL\) RETURNING i\.id\)/);
+  const taking = participantSql("$6", "r.project_id"); // the actor ($6) must take part in the issue's project
+  assert.ok(UPDATE_ISSUE_SQL.includes(`FROM (SELECT set_config('codecollab.actor_id', $6::text, true)) AS actor WHERE i.id = $1::bigint AND EXISTS (SELECT 1 FROM repositories r WHERE r.id = i.repository_id AND r.github_url IS NULL AND ${taking}) RETURNING i.id)`));
+  assert.ok(UPDATE_ISSUE_SQL.includes(`r.github_url IS NOT NULL AND ${taking}) AS mirrored`)); // a mirror outside the actor's projects is not revealed
   let seen: readonly unknown[] = [];
   await updateIssue("5", input, "9", async (_t, p) => { seen = p; return [{ id: "5", mirrored: false }]; });
   assert.equal(seen[5], "9"); // parameter 6 is the actor
@@ -99,7 +104,7 @@ test("the New Issue dropdown lists only repositories without a github_url; the f
   assert.match(LIST_WRITABLE_REPOSITORIES_SQL, /WHERE r\.github_url IS NULL/);
   assert.doesNotMatch(LIST_REPOSITORIES_SQL, /github_url/);
   let seenSql = "";
-  await listWritableRepositories(async (text) => { seenSql = text; return []; });
+  await listWritableRepositories("77", async (text) => { seenSql = text; return []; });
   assert.equal(seenSql, LIST_WRITABLE_REPOSITORIES_SQL);
 });
 

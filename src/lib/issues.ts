@@ -1,6 +1,7 @@
 import "server-only";
 import { query } from "@/lib/db";
 import type { IssueInput, IssuePriority, IssueStatus } from "@/lib/issue-input";
+import { participantSql } from "@/lib/project-access";
 
 export const PAGE_SIZE = 25;
 
@@ -15,22 +16,26 @@ const ISSUE_FROM =
   "FROM issues i JOIN repositories r ON r.id = i.repository_id JOIN projects p ON p.id = r.project_id " +
   "LEFT JOIN users a ON a.id = i.author_id LEFT JOIN users s ON s.id = i.assignee_id";
 
-// Optional filters are bound parameters: a NULL means "no filter".
+// Optional filters are bound parameters: a NULL means "no filter". The last parameter is the viewer (the signed-in
+// user); only issues of projects the viewer takes part in are ever returned (see project-access.ts).
 export const LIST_ISSUES_SQL =
   `SELECT ${ISSUE_COLUMNS} ${ISSUE_FROM} ` +
   "WHERE ($1::bigint IS NULL OR i.repository_id = $1::bigint) AND ($2::text IS NULL OR i.status = $2::text) " +
+  `AND ${participantSql("$5", "r.project_id")} ` +
   "ORDER BY i.updated_at DESC, i.id DESC LIMIT $3 OFFSET $4";
 export const COUNT_ISSUES_SQL =
-  "SELECT count(*)::int AS n FROM issues i " +
-  "WHERE ($1::bigint IS NULL OR i.repository_id = $1::bigint) AND ($2::text IS NULL OR i.status = $2::text)";
-export const GET_ISSUE_SQL = `SELECT ${ISSUE_COLUMNS} ${ISSUE_FROM} WHERE i.id = $1::bigint`;
-// Every repository: used for the filter on the issue list, where mirrored issues are shown.
+  "SELECT count(*)::int AS n FROM issues i JOIN repositories r ON r.id = i.repository_id " +
+  "WHERE ($1::bigint IS NULL OR i.repository_id = $1::bigint) AND ($2::text IS NULL OR i.status = $2::text) " +
+  `AND ${participantSql("$3", "r.project_id")}`;
+export const GET_ISSUE_SQL = `SELECT ${ISSUE_COLUMNS} ${ISSUE_FROM} WHERE i.id = $1::bigint AND ${participantSql("$2", "r.project_id")}`;
+// Repositories of the viewer's projects: used for the filter on the issue list, where mirrored issues are shown.
 export const LIST_REPOSITORIES_SQL =
-  "SELECT r.id::text AS id, r.name, p.name AS project_name FROM repositories r JOIN projects p ON p.id = r.project_id ORDER BY p.name, r.name";
+  "SELECT r.id::text AS id, r.name, p.name AS project_name FROM repositories r JOIN projects p ON p.id = r.project_id " +
+  `WHERE ${participantSql("$1", "r.project_id")} ORDER BY p.name, r.name`;
 // Only repositories that accept new issues: a repository with a github_url mirrors GitHub and is read-only here.
 export const LIST_WRITABLE_REPOSITORIES_SQL =
   "SELECT r.id::text AS id, r.name, p.name AS project_name FROM repositories r JOIN projects p ON p.id = r.project_id " +
-  "WHERE r.github_url IS NULL ORDER BY p.name, r.name";
+  `WHERE r.github_url IS NULL AND ${participantSql("$1", "r.project_id")} ORDER BY p.name, r.name`;
 
 // The next number is max + 1 within the repository, in one statement. Two writers can still pick the same
 // number; the UNIQUE (repository_id, number) constraint then rejects one and createIssue retries.
@@ -42,10 +47,10 @@ export const CREATE_ISSUE_SQL =
   "INSERT INTO issues (repository_id, number, title, body, status, priority, author_id, closed_at) " +
   "SELECT $1::bigint, COALESCE(MAX(number), 0) + 1, $2::text, $3::text, $4::text, $5::text, $6::bigint, " +
   "CASE WHEN $4::text = 'closed' THEN now() END FROM issues WHERE repository_id = $1::bigint " +
-  "HAVING EXISTS (SELECT 1 FROM repositories WHERE id = $1::bigint AND github_url IS NULL) " +
+  `HAVING EXISTS (SELECT 1 FROM repositories WHERE id = $1::bigint AND github_url IS NULL AND ${participantSql("$6", "repositories.project_id")}) ` +
   "RETURNING id) " +
   "SELECT (SELECT id::text FROM ins) AS id, " +
-  "(SELECT github_url IS NOT NULL FROM repositories WHERE id = $1::bigint) AS mirrored";
+  `(SELECT github_url IS NOT NULL FROM repositories WHERE id = $1::bigint AND ${participantSql("$6", "repositories.project_id")}) AS mirrored`;
 // updated_at moves forward, so a later ingestion (which only overwrites older rows) keeps this edit.
 // set_config(..., true) sets codecollab.actor_id for this transaction only, in the same statement, so the audit trigger
 // records who made the edit. Issues in a GitHub mirror (github_url set) are never updated; the final SELECT reports
@@ -55,10 +60,10 @@ export const UPDATE_ISSUE_SQL =
   "UPDATE issues i SET title = $2::text, body = $3::text, status = $4::text, priority = $5::text, updated_at = now(), " +
   "closed_at = CASE WHEN $4::text = 'closed' THEN COALESCE(i.closed_at, now()) ELSE NULL END " +
   "FROM (SELECT set_config('codecollab.actor_id', $6::text, true)) AS actor " +
-  "WHERE i.id = $1::bigint AND EXISTS (SELECT 1 FROM repositories r WHERE r.id = i.repository_id AND r.github_url IS NULL) " +
+  `WHERE i.id = $1::bigint AND EXISTS (SELECT 1 FROM repositories r WHERE r.id = i.repository_id AND r.github_url IS NULL AND ${participantSql("$6", "r.project_id")}) ` +
   "RETURNING i.id) " +
   "SELECT (SELECT id::text FROM upd) AS id, " +
-  "EXISTS (SELECT 1 FROM issues x JOIN repositories r ON r.id = x.repository_id WHERE x.id = $1::bigint AND r.github_url IS NOT NULL) AS mirrored";
+  `EXISTS (SELECT 1 FROM issues x JOIN repositories r ON r.id = x.repository_id WHERE x.id = $1::bigint AND r.github_url IS NOT NULL AND ${participantSql("$6", "r.project_id")}) AS mirrored`;
 
 export type IssueRow = {
   id: string;
@@ -84,25 +89,27 @@ export type IssueFilters = { repositoryId: string | null; status: string | null 
 export async function listIssues(
   filters: IssueFilters,
   page: number,
+  viewerId: string,
   run: RunQuery<IssueRow> = query<IssueRow>,
 ): Promise<IssueRow[]> {
-  return run(LIST_ISSUES_SQL, [filters.repositoryId, filters.status, PAGE_SIZE, (page - 1) * PAGE_SIZE]);
+  return run(LIST_ISSUES_SQL, [filters.repositoryId, filters.status, PAGE_SIZE, (page - 1) * PAGE_SIZE, viewerId]);
 }
 
-export async function countIssues(filters: IssueFilters, run: RunQuery<{ n: number }> = query<{ n: number }>): Promise<number> {
-  return (await run(COUNT_ISSUES_SQL, [filters.repositoryId, filters.status]))[0]?.n ?? 0;
+export async function countIssues(filters: IssueFilters, viewerId: string, run: RunQuery<{ n: number }> = query<{ n: number }>): Promise<number> {
+  return (await run(COUNT_ISSUES_SQL, [filters.repositoryId, filters.status, viewerId]))[0]?.n ?? 0;
 }
 
-export async function getIssue(id: string, run: RunQuery<IssueRow> = query<IssueRow>): Promise<IssueRow | null> {
-  return (await run(GET_ISSUE_SQL, [id]))[0] ?? null;
+// Null when there is no such issue or the viewer does not take part in its project (the page shows a 404 for both).
+export async function getIssue(id: string, viewerId: string, run: RunQuery<IssueRow> = query<IssueRow>): Promise<IssueRow | null> {
+  return (await run(GET_ISSUE_SQL, [id, viewerId]))[0] ?? null;
 }
 
-export async function listRepositories(run: RunQuery<RepositoryOption> = query<RepositoryOption>): Promise<RepositoryOption[]> {
-  return run(LIST_REPOSITORIES_SQL, []);
+export async function listRepositories(viewerId: string, run: RunQuery<RepositoryOption> = query<RepositoryOption>): Promise<RepositoryOption[]> {
+  return run(LIST_REPOSITORIES_SQL, [viewerId]);
 }
 
-export async function listWritableRepositories(run: RunQuery<RepositoryOption> = query<RepositoryOption>): Promise<RepositoryOption[]> {
-  return run(LIST_WRITABLE_REPOSITORIES_SQL, []);
+export async function listWritableRepositories(viewerId: string, run: RunQuery<RepositoryOption> = query<RepositoryOption>): Promise<RepositoryOption[]> {
+  return run(LIST_WRITABLE_REPOSITORIES_SQL, [viewerId]);
 }
 
 export class RepositoryNotFoundError extends Error {}

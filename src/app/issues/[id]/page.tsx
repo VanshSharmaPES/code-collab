@@ -9,13 +9,13 @@ import { formatDate, formatLabel } from "@/lib/format";
 export const metadata: Metadata = { title: "Issue | CodeCollab" };
 
 export default async function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireSession();
+  const session = await requireSession();
   const id = parseId((await params).id);
   if (id === null) notFound();
 
   let issue: IssueRow | null;
   try {
-    issue = await getIssue(id);
+    issue = await getIssue(id, session.userId);
   } catch (err) {
     console.error("Issue page: could not load the issue:", err instanceof Error ? err.message : err);
     return (

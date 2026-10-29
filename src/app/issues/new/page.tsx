@@ -7,10 +7,10 @@ import { IssueForm } from "../issue-form";
 export const metadata: Metadata = { title: "New issue | CodeCollab" };
 
 export default async function NewIssuePage() {
-  await requireSession();
+  const session = await requireSession();
   let repositories: RepositoryOption[] | null = null;
   try {
-    repositories = await listWritableRepositories();
+    repositories = await listWritableRepositories(session.userId);
   } catch (err) {
     console.error("New issue page: could not load repositories:", err instanceof Error ? err.message : err);
   }
