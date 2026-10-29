@@ -88,7 +88,7 @@ export function monthlyActivityPipeline(filter: AnalyticsFilter = {}): Pipeline 
   ];
 }
 
-// The files touched by the most commits, per repository. Ties are broken by repository then file name.
+// The files touched by the most commits across all repositories. Ties are broken by repository then file name.
 export function topFilesPipeline(filter: AnalyticsFilter = {}, limit: number = DEFAULT_TOP_FILES): Pipeline {
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_TOP_FILES) throw new RangeError(`limit must be a whole number from 1 to ${MAX_TOP_FILES}.`);
   return [
