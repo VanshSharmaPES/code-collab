@@ -8,7 +8,8 @@
     "start": "next start --port 3001",
     "lint": "eslint",
     "test": "node --conditions=react-server --import tsx --test src/lib/*.test.ts scripts/*.test.ts",
-    "seed": "node --conditions=react-server --env-file-if-exists=.env --import tsx scripts/seed.ts"
+    "seed": "node --conditions=react-server --env-file-if-exists=.env --import tsx scripts/seed.ts",
+    "ingest": "node --env-file-if-exists=.env --import tsx scripts/ingest.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
