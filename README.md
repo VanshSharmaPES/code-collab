@@ -36,7 +36,7 @@ src/
 ## Prerequisites
 
 - Podman or Docker, to run the databases
-- Node.js 20.9 or newer, and npm
+- Node.js 20.19.0 or newer, and npm
 - Optional: a local `psql` client, needed only for `db/apply.sh`
 
 ## Getting started
