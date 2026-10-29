@@ -43,6 +43,17 @@ export const COLLECTIONS = {
 // A notification disappears when its own `expiresAt` passes (TTL index with expireAfterSeconds 0).
 export const NOTIFICATION_TTL_INDEX = "notifications_expires_at_ttl";
 
+
+
+// Applied when the notifications collection is created. A TTL index only expires documents whose `expiresAt` is a BSON
+// date; a string or number there would never expire. Only the types are enforced, not the presence of the fields: no
+// writer of notifications exists yet to show that every document carries both. Existing collections are not changed.
+export const NOTIFICATION_VALIDATOR = {
+  $jsonSchema: {
+    bsonType: "object",
+    properties: { createdAt: { bsonType: "date" }, expiresAt: { bsonType: "date" } },
+  },
+} as const;
 export type IndexSpec = {
   collection: string;
   name: string;
