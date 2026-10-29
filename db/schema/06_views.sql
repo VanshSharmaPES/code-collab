@@ -53,4 +53,7 @@ FROM (SELECT DISTINCT t.project_id, tm.user_id
         FROM teams t JOIN team_members tm ON tm.team_id = t.id) m
 JOIN projects p ON p.id = m.project_id
 JOIN users u    ON u.id = m.user_id
-CROSS JOIN LATERAL contribution_counts(u.id, p.id) c;
+-- OFFSET 0 is a planner fence (P1-14). Without it Postgres inlines contribution_counts
+-- and re-runs its subqueries for every reference to a count or to score, which made a
+-- query using score nine times take about 8 s on 1M commits instead of about 1.3 s.
+CROSS JOIN LATERAL (SELECT * FROM contribution_counts(u.id, p.id) OFFSET 0) c;

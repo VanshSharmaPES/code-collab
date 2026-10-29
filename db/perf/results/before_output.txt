@@ -1,0 +1,457 @@
+1|Library Portal|1|19|Neel Das|23809.00|27.6
+1|Library Portal|2|49|Vihaan Gupta|23063.00|26.7
+1|Library Portal|3|34|Nisha Patel|22740.00|26.3
+2|Campus Events|1|35|Dev Reddy|22964.00|26.9
+2|Campus Events|2|5|Rohan Gupta|22893.00|26.9
+2|Campus Events|3|50|Saanvi Menon|22662.00|26.6
+3|Hostel Manager|1|6|Isha Menon|23124.00|27.2
+3|Hostel Manager|2|21|Aarav Rao|22861.00|26.9
+3|Hostel Manager|3|51|Aditya Patel|22317.00|26.3
+4|Alumni Network|1|7|Arjun Patel|23082.00|27.3
+4|Alumni Network|2|22|Diya Gupta|22427.00|26.5
+4|Alumni Network|3|37|Ishaan Kulkarni|22412.00|26.5
+5|Lab Booking|1|23|Kabir Menon|22712.00|26.8
+5|Lab Booking|2|53|Reyansh Das|22618.00|26.7
+5|Lab Booking|3|8|Ananya Reddy|22486.00|26.6
+6|Course Planner|1|24|Meera Patel|23046.00|27.3
+6|Course Planner|2|54|Nisha Kulkarni|22418.00|26.5
+6|Course Planner|3|39|Neel Iyer|22346.00|26.4
+7|Placement Tracker|1|25|Rohan Reddy|22811.00|27.0
+7|Placement Tracker|2|10|Saanvi Kulkarni|22435.00|26.6
+7|Placement Tracker|3|40|Pooja Nair|22326.00|26.4
+8|Canteen Orders|1|41|Aarav Patel|23002.00|27.2
+8|Canteen Orders|2|56|Tara Iyer|22577.00|26.7
+8|Canteen Orders|3|11|Aditya Sharma|22168.00|26.3
+9|Study Groups|1|27|Arjun Kulkarni|22837.00|27.0
+9|Study Groups|2|12|Kavya Iyer|22613.00|26.7
+9|Study Groups|3|42|Diya Reddy|22295.00|26.4
+10|Research Hub|1|13|Reyansh Nair|22774.00|27.0
+10|Research Hub|2|43|Kabir Das|22610.00|26.8
+10|Research Hub|3|58|Riya Rao|22476.00|26.7
+11|Sports Scheduler|1|44|Meera Kulkarni|22717.00|27.0
+11|Sports Scheduler|2|59|Neel Gupta|22625.00|26.9
+11|Sports Scheduler|3|14|Nisha Rao|22192.00|26.4
+12|Club Directory|1|60|Pooja Menon|23138.00|27.4
+12|Club Directory|2|45|Rohan Sharma|22486.00|26.7
+12|Club Directory|3|15|Dev Gupta|22117.00|26.2
+13|Notes Exchange|1|31|Aditya Rao|31028.00|36.9
+13|Notes Exchange|2|46|Isha Iyer|30667.00|36.5
+13|Notes Exchange|3|16|Tara Menon|22333.00|26.6
+14|Grievance Desk|1|32|Kavya Gupta|31419.00|37.3
+14|Grievance Desk|2|17|Ishaan Patel|30705.00|36.4
+14|Grievance Desk|3|47|Arjun Nair|22122.00|26.3
+15|Travel Pool|1|33|Reyansh Menon|31336.00|37.3
+15|Travel Pool|2|18|Riya Reddy|30344.00|36.1
+15|Travel Pool|3|48|Ananya Rao|22331.00|26.6
+12|Club Directory|3141|6|Add form validation (#590)|critical|open||91
+7|Placement Tracker|2004|3|Test pagination (#2820)|critical|open|Pooja Nair|91
+12|Club Directory|3151|16|Fix form validation (#2142)|critical|in_progress|Dev Gupta|85
+9|Study Groups|2487|10|Fix login flow (#1792)|critical|open||84
+1|Library Portal|29|29|Fix API errors (#315)|critical|open|Meera Rao|83
+3|Hostel Manager|919|42|Fix login flow (#3360)|critical|in_progress|Aarav Rao|72
+10|Research Hub|2743|35|Investigate dashboard (#1802)|critical|in_progress|Ananya Sharma|70
+6|Course Planner|1784|39|Test pagination (#1924)|critical|in_progress|Neel Iyer|70
+10|Research Hub|2754|46|Improve login flow (#568)|critical|in_progress|Ananya Sharma|69
+11|Sports Scheduler|2975|42|Document notifications (#3687)|critical|in_progress|Meera Kulkarni|69
+1|Library Portal|124|124|Add pagination (#2228)|critical|open||66
+8|Canteen Orders|2304|55|Refactor notifications (#2839)|critical|open||65
+3|Hostel Manager|982|105|Fix build script (#1757)|critical|open||65
+2|Campus Events|629|120|Add pagination (#1388)|critical|in_progress|Pooja Kulkarni|65
+15|Travel Pool|3881|81|Fix search page (#441)|critical|in_progress|Ananya Rao|65
+11|Sports Scheduler|3010|77|Test login flow (#3240)|critical|in_progress|Meera Kulkarni|63
+1|Library Portal|170|170|Improve form validation (#2766)|critical|in_progress|Meera Rao|62
+12|Club Directory|3232|97|Improve notifications (#407)|critical|in_progress|Dev Gupta|60
+15|Travel Pool|3802|2|Document login flow (#3680)|critical|open||59
+9|Study Groups|2562|85|Add dashboard (#114)|critical|open|Arjun Kulkarni|56
+13|Notes Exchange|3460|85|Add login flow (#2424)|critical|in_progress|Isha Iyer|55
+5|Lab Booking|1597|93|Refactor search page (#977)|critical|open||54
+6|Course Planner|1847|102|Investigate form validation (#3622)|critical|open||54
+8|Canteen Orders|2330|81|Document login flow (#3232)|critical|open||53
+6|Course Planner|1853|108|Fix build script (#2597)|critical|open||50
+14|Grievance Desk|3706|94|Fix search page (#49)|critical|open||49
+7|Placement Tracker|2036|35|Refactor API errors (#1747)|critical|in_progress|Pooja Nair|48
+1|Library Portal|230|230|Fix pagination (#2940)|critical|open|Meera Rao|46
+3|Hostel Manager|1024|147|Fix dashboard (#322)|critical|in_progress|Aarav Rao|46
+1|Library Portal|89|89|Refactor dashboard (#2650)|critical|in_progress|Meera Rao|45
+4|Alumni Network|1188|6|Investigate pagination (#2796)|critical|in_progress|Kavya Reddy|43
+12|Club Directory|3157|22|Document form validation (#2854)|critical|in_progress|Dev Gupta|43
+10|Research Hub|2817|109|Improve build script (#3669)|critical|in_progress|Ananya Sharma|42
+11|Sports Scheduler|3046|113|Add build script (#2053)|critical|in_progress|Meera Kulkarni|42
+10|Research Hub|2819|111|Document login flow (#656)|critical|in_progress|Ananya Sharma|42
+4|Alumni Network|1359|177|Add build script (#2109)|critical|open|Kavya Reddy|41
+12|Club Directory|3231|96|Test pagination (#1532)|critical|open||41
+1|Library Portal|81|81|Fix dashboard (#1722)|critical|open|Meera Rao|40
+8|Canteen Orders|2271|22|Add notifications (#2935)|critical|open||39
+8|Canteen Orders|2305|56|Improve build script (#2381)|critical|in_progress|Aditya Sharma|39
+6|Course Planner|1831|86|Investigate notifications (#3951)|critical|open|Neel Iyer|39
+8|Canteen Orders|2386|137|Improve dashboard (#50)|critical|in_progress|Aditya Sharma|38
+2|Campus Events|559|50|Add search page (#1241)|critical|in_progress|Pooja Kulkarni|38
+3|Hostel Manager|1073|196|Fix notifications (#735)|critical|open|Aarav Rao|38
+2|Campus Events|746|237|Improve notifications (#2703)|critical|in_progress|Pooja Kulkarni|38
+15|Travel Pool|3933|133|Refactor build script (#2909)|critical|open||38
+12|Club Directory|3236|101|Refactor form validation (#942)|critical|open|Dev Gupta|38
+9|Study Groups|2620|143|Refactor build script (#2069)|critical|open||37
+4|Alumni Network|1224|42|Refactor build script (#1173)|critical|in_progress|Kavya Reddy|37
+3|Hostel Manager|1079|202|Improve pagination (#3620)|critical|open||37
+1|Library Portal|337|337|Refactor form validation (#2902)|critical|open||37
+2|Campus Events|755|246|Test API errors (#83)|critical|open||37
+3|Hostel Manager|1087|210|Improve login flow (#2472)|critical|open|Aarav Rao|36
+4|Alumni Network|1197|15|Investigate pagination (#2964)|critical|open|Kavya Reddy|36
+6|Course Planner|1842|97|Document search page (#2105)|critical|in_progress|Neel Iyer|36
+2|Campus Events|764|255|Document build script (#2133)|critical|in_progress|Pooja Kulkarni|34
+11|Sports Scheduler|3070|137|Fix login flow (#896)|critical|in_progress|Meera Kulkarni|34
+4|Alumni Network|1263|81|Fix pagination (#1092)|critical|open|Kavya Reddy|33
+7|Placement Tracker|2160|159|Add pagination (#3684)|critical|open|Pooja Nair|33
+15|Travel Pool|3945|145|Investigate form validation (#1046)|critical|open||33
+10|Research Hub|2739|31|Fix form validation (#294)|critical|open|Ananya Sharma|33
+2|Campus Events|574|65|Test pagination (#1476)|critical|in_progress|Pooja Kulkarni|31
+15|Travel Pool|3810|10|Improve form validation (#1646)|critical|open||31
+12|Club Directory|3139|4|Document form validation (#278)|critical|open||30
+3|Hostel Manager|901|24|Document pagination (#2812)|critical|in_progress|Aarav Rao|29
+1|Library Portal|27|27|Document dashboard (#1370)|critical|open||28
+4|Alumni Network|1246|64|Investigate API errors (#2299)|critical|open||28
+5|Lab Booking|1539|35|Test login flow (#3520)|critical|open||27
+1|Library Portal|385|385|Document pagination (#3428)|critical|open||26
+12|Club Directory|3287|152|Improve pagination (#3172)|critical|open||26
+12|Club Directory|3225|90|Add form validation (#702)|critical|open|Dev Gupta|26
+6|Course Planner|1917|172|Test API errors (#811)|critical|in_progress|Neel Iyer|26
+14|Grievance Desk|3697|85|Refactor form validation (#2678)|critical|in_progress|Kavya Gupta|26
+2|Campus Events|567|58|Test login flow (#1896)|critical|in_progress|Pooja Kulkarni|25
+9|Study Groups|2542|65|Document pagination (#2532)|critical|open|Arjun Kulkarni|25
+7|Placement Tracker|2046|45|Improve login flow (#3872)|critical|open||24
+1|Library Portal|250|250|Document API errors (#467)|critical|open||24
+4|Alumni Network|1323|141|Improve pagination (#3676)|critical|open||24
+1|Library Portal|353|353|Improve pagination (#3844)|critical|in_progress|Meera Rao|23
+3|Hostel Manager|944|67|Refactor build script (#277)|critical|open||23
+4|Alumni Network|1365|183|Improve notifications (#855)|critical|open|Kavya Reddy|23
+3|Hostel Manager|888|11|Document search page (#2609)|critical|open||22
+7|Placement Tracker|2115|114|Improve build script (#1149)|critical|open|Pooja Nair|21
+13|Notes Exchange|3491|116|Investigate build script (#3741)|critical|open|Isha Iyer|21
+15|Travel Pool|3809|9|Refactor dashboard (#1418)|critical|open||21
+13|Notes Exchange|3510|135|Test dashboard (#34)|critical|open||20
+2|Campus Events|779|270|Fix pagination (#3276)|critical|open|Pooja Kulkarni|20
+8|Canteen Orders|2319|70|Investigate build script (#3013)|critical|in_progress|Aditya Sharma|20
+6|Course Planner|1864|119|Improve build script (#3109)|critical|open||20
+14|Grievance Desk|3638|26|Document login flow (#2728)|critical|open||19
+4|Alumni Network|1227|45|Test search page (#3513)|critical|in_progress|Kavya Reddy|19
+5|Lab Booking|1649|145|Document login flow (#2616)|critical|in_progress|Riya Sharma|18
+6|Course Planner|1861|116|Add build script (#3677)|critical|open||18
+5|Lab Booking|1688|184|Fix form validation (#3654)|critical|open|Riya Sharma|18
+2|Campus Events|523|14|Fix notifications (#3815)|critical|open||17
+13|Notes Exchange|3498|123|Test API errors (#1987)|critical|open||17
+4|Alumni Network|1375|193|Investigate API errors (#1179)|critical|open|Kavya Reddy|16
+8|Canteen Orders|2395|146|Refactor login flow (#3560)|critical|open||16
+11|Sports Scheduler|2948|15|Improve login flow (#3984)|critical|in_progress|Meera Kulkarni|16
+12|Club Directory|3147|12|Investigate notifications (#759)|critical|open|Dev Gupta|16
+5|Lab Booking|1685|181|Add pagination (#1612)|critical|in_progress|Riya Sharma|16
+8|Canteen Orders|2408|159|Improve login flow (#400)|critical|open||15
+9|Study Groups|2670|193|Test dashboard (#1490)|critical|open||15
+1|Library Portal|438|438|Add notifications (#471)|critical|in_progress|Meera Rao|14
+1|Library Portal|323|323|Document search page (#1713)|critical|in_progress|Meera Rao|14
+12|Club Directory|3320|185|Refactor pagination (#2020)|critical|open||14
+1|Library Portal|343|343|Test dashboard (#3226)|critical|in_progress|Meera Rao|14
+12|Club Directory|3211|76|Refactor API errors (#3539)|critical|open||14
+2|Campus Events|514|5|Improve login flow (#3200)|high|open||91
+2|Campus Events|524|15|Document pagination (#796)|high|open||87
+14|Grievance Desk|3619|7|Improve dashboard (#2010)|high|in_progress|Kavya Gupta|86
+4|Alumni Network|1200|18|Refactor dashboard (#2482)|high|in_progress|Kavya Reddy|85
+14|Grievance Desk|3622|10|Fix API errors (#2387)|high|in_progress|Kavya Gupta|85
+6|Course Planner|1759|14|Refactor pagination (#2804)|high|in_progress|Neel Iyer|84
+10|Research Hub|2726|18|Refactor pagination (#3700)|high|open||83
+6|Course Planner|1763|18|Add dashboard (#394)|high|open||82
+3|Hostel Manager|903|26|Investigate search page (#2705)|high|open||78
+3|Hostel Manager|912|35|Fix pagination (#1820)|high|open||76
+6|Course Planner|1773|28|Add notifications (#3887)|high|open||72
+2|Campus Events|560|51|Improve build script (#1709)|high|open||72
+5|Lab Booking|1532|28|Document login flow (#2112)|high|open|Riya Sharma|71
+6|Course Planner|1775|30|Refactor search page (#3833)|high|in_progress|Neel Iyer|71
+4|Alumni Network|1233|51|Add notifications (#1143)|high|open|Kavya Reddy|71
+13|Notes Exchange|3408|33|Document dashboard (#3834)|high|open|Isha Iyer|70
+1|Library Portal|68|68|Test build script (#2813)|high|open||70
+1|Library Portal|71|71|Test form validation (#1294)|high|in_progress|Meera Rao|70
+7|Placement Tracker|2044|43|Add pagination (#1780)|high|open||70
+3|Hostel Manager|928|51|Document form validation (#1174)|high|in_progress|Aarav Rao|70
+3|Hostel Manager|930|53|Test API errors (#2827)|high|in_progress|Aarav Rao|70
+11|Sports Scheduler|2971|38|Test notifications (#1623)|high|open|Meera Kulkarni|69
+3|Hostel Manager|935|58|Test dashboard (#2274)|high|in_progress|Aarav Rao|69
+3|Hostel Manager|938|61|Document notifications (#2007)|high|in_progress|Aarav Rao|69
+12|Club Directory|3176|41|Add form validation (#1934)|high|open||69
+13|Notes Exchange|3417|42|Add pagination (#660)|high|open|Isha Iyer|69
+5|Lab Booking|1548|44|Refactor dashboard (#690)|high|open|Riya Sharma|69
+10|Research Hub|2758|50|Improve dashboard (#778)|high|open||69
+14|Grievance Desk|3657|45|Add form validation (#2830)|high|open||69
+11|Sports Scheduler|2979|46|Test dashboard (#2610)|high|in_progress|Meera Kulkarni|69
+4|Alumni Network|1261|79|Fix dashboard (#2114)|high|in_progress|Kavya Reddy|68
+3|Hostel Manager|964|87|Investigate API errors (#3139)|high|in_progress|Aarav Rao|67
+15|Travel Pool|3863|63|Refactor build script (#1565)|high|open||67
+2|Campus Events|603|94|Improve pagination (#1716)|high|in_progress|Pooja Kulkarni|66
+6|Course Planner|1812|67|Improve search page (#3305)|high|open||66
+12|Club Directory|3203|68|Investigate pagination (#1452)|high|open|Dev Gupta|66
+13|Notes Exchange|3432|57|Test pagination (#300)|high|in_progress|Isha Iyer|66
+2|Campus Events|615|106|Fix form validation (#1806)|high|open|Pooja Kulkarni|65
+4|Alumni Network|1280|98|Investigate notifications (#871)|high|open||65
+14|Grievance Desk|3680|68|Investigate notifications (#3111)|high|in_progress|Kavya Gupta|65
+9|Study Groups|2541|64|Investigate form validation (#1718)|high|in_progress|Arjun Kulkarni|65
+6|Course Planner|1826|81|Investigate API errors (#283)|high|in_progress|Neel Iyer|65
+9|Study Groups|2545|68|Refactor search page (#1649)|high|in_progress|Arjun Kulkarni|65
+14|Grievance Desk|3684|72|Improve API errors (#3739)|high|open||65
+3|Hostel Manager|987|110|Improve login flow (#3088)|high|open||65
+1|Library Portal|154|154|Refactor notifications (#431)|high|open||65
+1|Library Portal|156|156|Document build script (#1853)|high|in_progress|Meera Rao|65
+15|Travel Pool|3885|85|Improve build script (#925)|high|open||64
+8|Canteen Orders|2320|71|Add API errors (#723)|high|in_progress|Aditya Sharma|62
+2|Campus Events|641|132|Refactor login flow (#200)|high|open||61
+4|Alumni Network|1300|118|Document pagination (#3708)|high|open|Kavya Reddy|61
+6|Course Planner|1834|89|Refactor API errors (#2419)|high|open||61
+4|Alumni Network|1185|3|Refactor notifications (#2111)|high|open||59
+5|Lab Booking|1589|85|Add build script (#933)|high|open|Riya Sharma|59
+5|Lab Booking|1509|5|Investigate dashboard (#1018)|high|open||56
+1|Library Portal|7|7|Improve dashboard (#2458)|high|in_progress|Meera Rao|56
+15|Travel Pool|3894|94|Investigate login flow (#2320)|high|in_progress|Ananya Rao|56
+5|Lab Booking|1593|89|Document dashboard (#922)|high|in_progress|Riya Sharma|55
+11|Sports Scheduler|3026|93|Document notifications (#2511)|high|open|Meera Kulkarni|55
+7|Placement Tracker|2088|87|Test search page (#1105)|high|open||55
+15|Travel Pool|3897|97|Fix notifications (#231)|high|in_progress|Ananya Rao|54
+4|Alumni Network|1214|32|Test pagination (#2708)|high|open||54
+3|Hostel Manager|1012|135|Document form validation (#3190)|high|in_progress|Aarav Rao|51
+12|Club Directory|3149|14|Add pagination (#3068)|high|in_progress|Dev Gupta|50
+5|Lab Booking|1505|1|Test search page (#2673)|high|in_progress|Riya Sharma|50
+6|Course Planner|1855|110|Document dashboard (#3050)|high|in_progress|Neel Iyer|49
+13|Notes Exchange|3469|94|Test notifications (#2967)|high|open|Isha Iyer|49
+10|Research Hub|2803|95|Fix dashboard (#1218)|high|open|Ananya Sharma|49
+4|Alumni Network|1331|149|Improve API errors (#2339)|high|open||49
+6|Course Planner|1860|115|Add API errors (#2739)|high|open|Neel Iyer|48
+1|Library Portal|216|216|Improve search page (#2689)|high|open||48
+8|Canteen Orders|2337|88|Improve API errors (#3515)|high|in_progress|Aditya Sharma|48
+4|Alumni Network|1334|152|Investigate login flow (#1984)|high|open||48
+1|Library Portal|74|74|Document search page (#145)|high|open||48
+4|Alumni Network|1256|74|Refactor form validation (#326)|high|in_progress|Kavya Reddy|47
+1|Library Portal|224|224|Fix search page (#3745)|high|in_progress|Meera Rao|47
+1|Library Portal|228|228|Test login flow (#3800)|high|open||46
+2|Campus Events|679|170|Investigate pagination (#2292)|high|open|Pooja Kulkarni|46
+5|Lab Booking|1508|4|Test search page (#881)|high|in_progress|Riya Sharma|45
+1|Library Portal|234|234|Improve API errors (#3459)|high|open|Meera Rao|44
+9|Study Groups|2580|103|Refactor notifications (#2727)|high|open|Arjun Kulkarni|44
+7|Placement Tracker|2058|57|Test notifications (#895)|high|open||43
+5|Lab Booking|1518|14|Document search page (#1993)|high|in_progress|Riya Sharma|43
+8|Canteen Orders|2254|5|Test notifications (#1063)|high|open||42
+7|Placement Tracker|2011|10|Investigate pagination (#52)|high|in_progress|Pooja Nair|42
+8|Canteen Orders|2268|19|Investigate login flow (#3888)|high|in_progress|Aditya Sharma|42
+2|Campus Events|701|192|Fix search page (#2625)|high|open|Pooja Kulkarni|42
+9|Study Groups|2498|21|Improve search page (#3921)|high|open|Arjun Kulkarni|41
+13|Notes Exchange|3379|4|Refactor API errors (#1467)|high|open|Isha Iyer|41
+3|Hostel Manager|1039|162|Document login flow (#2000)|high|in_progress|Aarav Rao|41
+11|Sports Scheduler|2947|14|Add API errors (#443)|high|open||41
+3|Hostel Manager|1047|170|Improve API errors (#2003)|high|open||41
+2|Campus Events|588|79|Fix form validation (#742)|high|open||41
+12|Club Directory|3219|84|Add build script (#2277)|high|open|Dev Gupta|41
+1|Library Portal|278|278|Refactor notifications (#3455)|high|open||41
+3|Hostel Manager|1055|178|Test login flow (#832)|high|open||40
+13|Notes Exchange|3444|69|Fix notifications (#3367)|high|in_progress|Isha Iyer|40
+1|Library Portal|286|286|Refactor search page (#1425)|high|open|Meera Rao|40
+12|Club Directory|3277|142|Document build script (#117)|high|open|Dev Gupta|40
+7|Placement Tracker|2131|130|Document login flow (#1496)|high|in_progress|Pooja Nair|40
+14|Grievance Desk|3644|32|Fix API errors (#2667)|high|in_progress|Kavya Gupta|39
+2|Campus Events|738|229|Add dashboard (#338)|high|in_progress|Pooja Kulkarni|39
+1|Library Portal|318|318|Refactor form validation (#2342)|high|open||39
+1|Library Portal|51|51|Test build script (#853)|high|open||39
+11|Sports Scheduler|2998|65|Document search page (#3225)|high|in_progress|Meera Kulkarni|39
+3|Hostel Manager|959|82|Improve build script (#869)|high|in_progress|Aarav Rao|38
+11|Sports Scheduler|2946|13|Improve login flow (#1520)|high|open||38
+9|Study Groups|2614|137|Fix API errors (#2947)|high|open||38
+10|Research Hub|2847|139|Improve notifications (#3991)|high|open||38
+2|Campus Events|584|75|Improve build script (#29)|high|in_progress|Pooja Kulkarni|38
+1|Library Portal|324|324|Refactor form validation (#550)|high|open||38
+14|Grievance Desk|3662|50|Add dashboard (#3138)|high|in_progress|Kavya Gupta|38
+4|Alumni Network|1190|8|Improve build script (#2493)|high|open|Kavya Reddy|38
+4|Alumni Network|1385|203|Refactor form validation (#2622)|high|open|Kavya Reddy|38
+9|Study Groups|2556|79|Document form validation (#1510)|high|in_progress|Arjun Kulkarni|38
+6|Course Planner|1829|84|Test dashboard (#3450)|high|open|Neel Iyer|37
+10|Research Hub|2764|56|Improve build script (#2885)|high|open||37
+6|Course Planner|1914|169|Test login flow (#1224)|high|in_progress|Neel Iyer|37
+2|Campus Events|751|242|Fix build script (#3829)|high|open||37
+6|Course Planner|1918|173|Fix notifications (#1743)|high|open|Neel Iyer|37
+11|Sports Scheduler|3067|134|Refactor notifications (#207)|high|open|Meera Kulkarni|37
+8|Canteen Orders|2399|150|Refactor pagination (#1292)|high|open||37
+6|Course Planner|1921|176|Test login flow (#3016)|high|open||37
+6|Course Planner|1817|72|Improve form validation (#750)|high|open|Neel Iyer|37
+1|Library Portal|50|50|Refactor notifications (#1103)|high|open||37
+3|Hostel Manager|909|32|Refactor notifications (#151)|high|open||36
+13|Notes Exchange|3412|37|Improve pagination (#2948)|high|open||36
+10|Research Hub|2710|2|Refactor pagination (#1796)|high|open||36
+1|Library Portal|55|55|Refactor API errors (#3875)|high|in_progress|Meera Rao|35
+9|Study Groups|2522|45|Investigate API errors (#843)|high|open|Arjun Kulkarni|35
+10|Research Hub|2800|92|Add login flow (#2088)|high|open|Ananya Sharma|34
+10|Research Hub|2781|73|Refactor build script (#893)|high|in_progress|Ananya Sharma|34
+12|Club Directory|3239|104|Fix login flow (#1008)|high|in_progress|Dev Gupta|34
+5|Lab Booking|1552|48|Investigate pagination (#1956)|high|in_progress|Riya Sharma|34
+12|Club Directory|3218|83|Test API errors (#755)|high|open||33
+12|Club Directory|3242|107|Refactor login flow (#1712)|high|in_progress|Dev Gupta|33
+4|Alumni Network|1406|224|Improve login flow (#1464)|high|open|Kavya Reddy|33
+11|Sports Scheduler|2994|61|Refactor pagination (#60)|high|in_progress|Meera Kulkarni|33
+1|Library Portal|362|362|Refactor search page (#2489)|high|open||33
+1|Library Portal|54|54|Improve form validation (#1198)|high|open||33
+15|Travel Pool|3877|77|Investigate dashboard (#1186)|high|open||32
+9|Study Groups|2576|99|Test build script (#1693)|high|in_progress|Arjun Kulkarni|32
+11|Sports Scheduler|3072|139|Document API errors (#915)|high|in_progress|Meera Kulkarni|31
+4|Alumni Network|1285|103|Improve build script (#1093)|high|open||31
+11|Sports Scheduler|3009|76|Fix search page (#2289)|high|open|Meera Kulkarni|31
+14|Grievance Desk|3663|51|Test build script (#517)|high|open||31
+8|Canteen Orders|2348|99|Fix build script (#3773)|high|in_progress|Aditya Sharma|31
+10|Research Hub|2783|75|Test pagination (#3492)|high|in_progress|Ananya Sharma|31
+2|Campus Events|558|49|Refactor login flow (#1264)|high|open||30
+4|Alumni Network|1296|114|Investigate notifications (#1095)|high|in_progress|Kavya Reddy|30
+3|Hostel Manager|949|72|Investigate login flow (#192)|high|open|Aarav Rao|30
+3|Hostel Manager|1027|150|Improve dashboard (#1170)|high|in_progress|Aarav Rao|29
+13|Notes Exchange|3540|165|Fix API errors (#2891)|high|in_progress|Isha Iyer|29
+11|Sports Scheduler|3077|144|Refactor search page (#1593)|high|open|Meera Kulkarni|29
+6|Course Planner|1866|121|Improve API errors (#43)|high|open||29
+4|Alumni Network|1222|40|Document form validation (#3302)|high|open||29
+6|Course Planner|1865|120|Document API errors (#3939)|high|in_progress|Neel Iyer|29
+3|Hostel Manager|991|114|Refactor build script (#1789)|high|open||29
+12|Club Directory|3175|40|Add notifications (#2095)|high|open||29
+2|Campus Events|561|52|Improve dashboard (#3690)|high|open|Pooja Kulkarni|28
+6|Course Planner|1833|88|Test notifications (#2127)|high|open|Neel Iyer|28
+5|Lab Booking|1640|136|Document notifications (#3015)|high|in_progress|Riya Sharma|27
+9|Study Groups|2598|121|Improve login flow (#1576)|high|in_progress|Arjun Kulkarni|27
+6|Course Planner|1781|36|Document notifications (#3575)|high|open||27
+5|Lab Booking|1678|174|Test dashboard (#146)|high|in_progress|Riya Sharma|27
+7|Placement Tracker|2116|115|Fix form validation (#3094)|high|open||27
+13|Notes Exchange|3436|61|Document API errors (#3547)|high|open||27
+3|Hostel Manager|975|98|Refactor pagination (#1180)|high|open||27
+6|Course Planner|1867|122|Document form validation (#1734)|high|in_progress|Neel Iyer|27
+6|Course Planner|1940|195|Fix API errors (#91)|high|open||27
+6|Course Planner|1943|198|Investigate pagination (#1732)|high|in_progress|Neel Iyer|26
+3|Hostel Manager|897|20|Fix build script (#3269)|high|open||26
+1|Library Portal|330|330|Document form validation (#670)|high|open||26
+1|Library Portal|303|303|Test API errors (#3667)|high|in_progress|Meera Rao|26
+14|Grievance Desk|3728|116|Investigate login flow (#2824)|high|in_progress|Kavya Gupta|26
+4|Alumni Network|1356|174|Improve search page (#3585)|high|open|Kavya Reddy|26
+9|Study Groups|2611|134|Add form validation (#366)|high|in_progress|Arjun Kulkarni|26
+3|Hostel Manager|1051|174|Refactor API errors (#3203)|high|open||26
+11|Sports Scheduler|3085|152|Test search page (#3009)|high|open|Meera Kulkarni|26
+1|Library Portal|259|259|Document pagination (#1524)|high|in_progress|Meera Rao|25
+5|Lab Booking|1653|149|Document build script (#341)|high|open||25
+1|Library Portal|211|211|Fix dashboard (#2898)|high|open|Meera Rao|25
+12|Club Directory|3289|154|Improve login flow (#2864)|high|open||25
+8|Canteen Orders|2317|68|Improve form validation (#3998)|high|in_progress|Aditya Sharma|25
+6|Course Planner|1767|22|Investigate build script (#101)|high|in_progress|Neel Iyer|25
+4|Alumni Network|1401|219|Test pagination (#1028)|high|open||25
+10|Research Hub|2840|132|Test login flow (#2568)|high|in_progress|Ananya Sharma|24
+2|Campus Events|636|127|Improve search page (#1177)|high|open||24
+14|Grievance Desk|3688|76|Document login flow (#96)|high|open|Kavya Gupta|24
+3|Hostel Manager|1064|187|Test search page (#545)|high|open||24
+12|Club Directory|3296|161|Refactor login flow (#816)|high|in_progress|Dev Gupta|24
+3|Hostel Manager|945|68|Refactor login flow (#3952)|high|open||24
+15|Travel Pool|3904|104|Fix API errors (#3675)|high|open|Ananya Rao|24
+3|Hostel Manager|879|2|Improve search page (#3025)|high|in_progress|Aarav Rao|24
+14|Grievance Desk|3636|24|Test search page (#2617)|high|open||24
+10|Research Hub|2756|48|Investigate notifications (#3391)|high|open||24
+7|Placement Tracker|2071|70|Document form validation (#502)|high|in_progress|Pooja Nair|23
+6|Course Planner|1754|9|Document build script (#3253)|high|open||23
+6|Course Planner|1908|163|Test notifications (#3919)|high|in_progress|Neel Iyer|23
+11|Sports Scheduler|2985|52|Refactor dashboard (#74)|high|open||23
+15|Travel Pool|3889|89|Fix pagination (#3556)|high|open||23
+12|Club Directory|3257|122|Fix API errors (#1099)|high|in_progress|Dev Gupta|22
+15|Travel Pool|3940|140|Add dashboard (#2298)|high|open|Ananya Rao|22
+10|Research Hub|2844|136|Fix login flow (#840)|high|open|Ananya Sharma|22
+4|Alumni Network|1427|245|Refactor dashboard (#1698)|high|in_progress|Kavya Reddy|22
+8|Canteen Orders|2343|94|Refactor build script (#2685)|high|in_progress|Aditya Sharma|22
+1|Library Portal|367|367|Test dashboard (#2554)|high|in_progress|Meera Rao|22
+1|Library Portal|394|394|Improve notifications (#743)|high|open||22
+5|Lab Booking|1547|43|Document build script (#3981)|high|in_progress|Riya Sharma|21
+1|Library Portal|218|218|Document pagination (#3148)|high|open||21
+15|Travel Pool|3855|55|Add search page (#1801)|high|in_progress|Ananya Rao|21
+5|Lab Booking|1664|160|Fix build script (#1085)|high|in_progress|Riya Sharma|21
+9|Study Groups|2644|167|Refactor pagination (#172)|high|open||21
+4|Alumni Network|1342|160|Add pagination (#1332)|high|open|Kavya Reddy|21
+9|Study Groups|2549|72|Investigate build script (#3405)|high|in_progress|Arjun Kulkarni|21
+13|Notes Exchange|3557|182|Refactor search page (#3105)|high|open|Isha Iyer|20
+10|Research Hub|2869|161|Investigate notifications (#2439)|high|in_progress|Ananya Sharma|20
+4|Alumni Network|1345|163|Add login flow (#1640)|high|open||20
+1|Library Portal|352|352|Fix form validation (#1582)|high|in_progress|Meera Rao|20
+6|Course Planner|1792|47|Fix login flow (#168)|high|open|Neel Iyer|20
+6|Course Planner|1956|211|Investigate login flow (#808)|high|open||20
+14|Grievance Desk|3771|159|Investigate form validation (#3566)|high|open||20
+5|Lab Booking|1614|110|Test build script (#1861)|high|open||19
+15|Travel Pool|3869|69|Fix API errors (#2275)|high|open||19
+12|Club Directory|3292|157|Investigate form validation (#94)|high|open||19
+2|Campus Events|727|218|Fix API errors (#875)|high|open||19
+15|Travel Pool|3965|165|Document API errors (#3211)|high|in_progress|Ananya Rao|19
+1|Library Portal|349|349|Add notifications (#303)|high|open|Meera Rao|19
+1|Library Portal|78|78|Improve search page (#3641)|high|in_progress|Meera Rao|19
+5|Lab Booking|1679|175|Improve notifications (#295)|high|open||19
+3|Hostel Manager|1089|212|Improve build script (#2605)|high|open||19
+15|Travel Pool|3922|122|Investigate search page (#2089)|high|open||18
+9|Study Groups|2635|158|Fix dashboard (#994)|high|open||18
+5|Lab Booking|1634|130|Add search page (#3313)|high|open||18
+5|Lab Booking|1610|106|Refactor API errors (#1635)|high|open|Riya Sharma|18
+10|Research Hub|2807|99|Refactor notifications (#2559)|high|in_progress|Ananya Sharma|17
+6|Course Planner|1803|58|Improve build script (#1261)|high|in_progress|Neel Iyer|17
+12|Club Directory|3288|153|Add search page (#2921)|high|open||17
+6|Course Planner|1813|68|Fix API errors (#259)|high|open||17
+5|Lab Booking|1632|128|Test build script (#3261)|high|open|Riya Sharma|17
+5|Lab Booking|1674|170|Investigate API errors (#1795)|high|open||17
+14|Grievance Desk|3762|150|Add dashboard (#1850)|high|open||16
+5|Lab Booking|1625|121|Improve dashboard (#1058)|high|open||16
+1|Library Portal|208|208|Refactor pagination (#2244)|high|open|Meera Rao|16
+9|Study Groups|2655|178|Test build script (#3597)|high|open|Arjun Kulkarni|16
+10|Research Hub|2814|106|Document login flow (#432)|high|open|Ananya Sharma|16
+3|Hostel Manager|1080|203|Improve pagination (#764)|high|in_progress|Aarav Rao|16
+9|Study Groups|2535|58|Refactor pagination (#3196)|high|in_progress|Arjun Kulkarni|16
+9|Study Groups|2568|91|Document notifications (#1447)|high|in_progress|Arjun Kulkarni|16
+15|Travel Pool|3971|171|Test dashboard (#3786)|high|open|Ananya Rao|16
+1|Library Portal|400|400|Investigate API errors (#3251)|high|in_progress|Meera Rao|16
+7|Placement Tracker|2202|201|Investigate form validation (#2278)|high|in_progress|Pooja Nair|16
+1|Library Portal|339|339|Refactor form validation (#1390)|high|open||16
+15|Travel Pool|3859|59|Refactor dashboard (#3042)|high|open|Ananya Rao|16
+10|Research Hub|2735|27|Test dashboard (#1602)|high|in_progress|Ananya Sharma|15
+10|Research Hub|2821|113|Fix API errors (#147)|high|open|Ananya Sharma|15
+7|Placement Tracker|2204|203|Refactor dashboard (#3770)|high|open||15
+1|Library Portal|240|240|Document dashboard (#642)|high|open|Meera Rao|15
+6|Course Planner|1924|179|Investigate search page (#1137)|high|open|Neel Iyer|15
+15|Travel Pool|3955|155|Fix form validation (#854)|high|open||15
+9|Study Groups|2665|188|Fix dashboard (#1610)|high|open||15
+13|Notes Exchange|3519|144|Fix API errors (#2443)|high|open||15
+13|Notes Exchange|3384|9|Fix dashboard (#378)|high|open|Isha Iyer|15
+8|Canteen Orders|2400|151|Fix search page (#1673)|high|in_progress|Aditya Sharma|15
+2|Campus Events|811|302|Refactor build script (#3077)|high|open||15
+12|Club Directory|3222|87|Test pagination (#1812)|high|in_progress|Dev Gupta|15
+10|Research Hub|2905|197|Investigate pagination (#220)|high|in_progress|Ananya Sharma|15
+8|Canteen Orders|2409|160|Document pagination (#2588)|high|open||14
+9|Study Groups|2672|195|Investigate login flow (#1760)|high|open||14
+8|Canteen Orders|2353|104|Fix notifications (#175)|high|open||14
+2|Campus Events|730|221|Fix build script (#2205)|high|in_progress|Pooja Kulkarni|14
+9|Study Groups|2674|197|Improve form validation (#134)|high|in_progress|Arjun Kulkarni|14
+6|Course Planner|1957|212|Document search page (#3001)|high|in_progress|Neel Iyer|14
+12|Club Directory|3328|193|Fix dashboard (#2506)|high|in_progress|Dev Gupta|14
+3|Hostel Manager|1119|242|Test build script (#3093)|high|open|Aarav Rao|14
+10|Research Hub|2722|14|Fix build script (#3941)|high|in_progress|Ananya Sharma|14
+8|Canteen Orders|2426|177|Document form validation (#3582)|high|open|Aditya Sharma|14
+1|Library Portal|452|452|Refactor pagination (#2692)|high|open||14
+3|Hostel Manager|969|92|Add notifications (#3607)|high|open||14
+5|Lab Booking|1705|201|Refactor pagination (#3140)|high|open||14
+15|Travel Pool|48|Ananya Rao|student|22324|1768
+13|Notes Exchange|16|Tara Menon|lead|22299|1787
+14|Grievance Desk|47|Arjun Nair|student|22108|1819
+7|Placement Tracker|55|Dev Sharma|student|16848|1368
+9|Study Groups|57|Ishaan Nair|student|16837|1381
+5|Lab Booking|38|Riya Sharma|student|16799|1320
+1|Library Portal|4|Meera Rao|lead|16755|1383
+6|Course Planner|9|Vihaan Das|lead|16716|1339
+4|Alumni Network|52|Kavya Reddy|student|16690|1338
+2|Campus Events|20|Pooja Kulkarni|student|16676|1325
+8|Canteen Orders|26|Isha Das|student|16668|1364
+11|Sports Scheduler|29|Vihaan Iyer|student|16643|1324
+3|Hostel Manager|36|Tara Das|student|16578|1313
+12|Club Directory|30|Saanvi Nair|student|16570|1384
+10|Research Hub|28|Ananya Sharma|student|16421|1410
+1|16450|18321|12|############
+2|18321|20192|0|
+3|20192|22063|0|
+4|22063|23935|39|#######################################
+5|23935|25806|0|
+6|25806|27677|0|
+7|27677|29548|0|
+8|29548|31419|6|######
+57|16450.00|22168.0|22486.0|22893.0|26423.0|31419.00|22261.4|3819.5
