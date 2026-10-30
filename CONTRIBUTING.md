@@ -24,10 +24,12 @@
 - It only writes to a local database named `codecollab` (it refuses production, remote hosts and other database names) and prints the target before connecting.
 - It is separate from `db/seed/dev_synthetic.sql` (P1-06), which loads the full dataset.
 
-## Who can see and change what (P1-07, partial)
+## Who can see and change what (P1-07)
 - A **participant** of a project is its mentor, the lead of one of its teams, or a member of one of its teams. Issues, pull requests and repositories of a project are visible and writable only to its participants. Anyone else gets "not found" (404 or "no longer exists"), never "forbidden", so the existence of other projects' rows is not revealed. The check is inside every query (`src/lib/project-access.ts`), and the viewer is always the signed-in user.
 - **Pull request actions:** any participant who is not the author can approve (the self-review trigger refuses the author); the author, a team lead or the mentor can close and reopen; only a team lead or the mentor can merge (enforced by `merge_pull_request`).
-- This is the least-privilege reading of the three roles. The repository only documents that a project is visible to its mentor (`docs/on_delete.md`), so please confirm or correct the rule. Not covered: the `/users` directory (it lists every user, as the week 1 checkpoint required) and role-based API route handlers.
+- **Users list (`/users`):** shows the signed-in user and the people who share a project with them (its mentor, team leads and team members). Someone on no project sees only themselves.
+- **The three roles.** What a person may do follows from their place in a project, not from the `role` column alone: a faculty mentor manages the projects they mentor, a team lead manages the projects whose team they lead, and a student member takes part in the projects whose team they are on. The `role` in the session is never used to grant access, so a forged or stale role claim cannot widen it. Every check runs on the server, inside the query or the database procedure; there are no API route handlers that read project data (pages and server actions do, and each one calls `requireSession` first).
+- This is the least-privilege reading of the three roles. The repository only documents that a project is visible to its mentor (`docs/on_delete.md`).
 - To check the rules against a real PostgreSQL: `TEST_PG_ADMIN_URL=postgresql://USER:PASSWORD@localhost:5433/postgres npm test` runs `scripts/project-access.integration.test.ts` in its own temporary database. It also exercises the self-review trigger and the merge procedure when `db/schema/03` and `04` are present.
 ## GitHub ingestion (P2-06)
 - `npm run ingest` is a dry run: it reads repository sizes from GitHub (a few read-only requests), prints the estimated request count, and writes nothing. The default repositories are `pallets/flask`, `expressjs/express` and `pallets/click`; pass `owner/name` arguments to choose others.

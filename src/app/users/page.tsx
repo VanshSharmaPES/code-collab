@@ -8,11 +8,11 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZ
 
 export default async function UsersPage() {
   // Runs before any query: without a valid session no user data is read or rendered.
-  await requireSession();
+  const session = await requireSession();
 
   let users: UserListItem[] | null = null;
   try {
-    users = await listUsers();
+    users = await listUsers(session.userId);
   } catch (err) {
     console.error("Users page: could not load users:", err instanceof Error ? err.message : err);
   }
@@ -30,7 +30,7 @@ export default async function UsersPage() {
       ) : (
         <div className="mt-6 overflow-x-auto">
           <table className="w-full border-collapse text-left text-sm">
-            <caption className="sr-only">Users in the CodeCollab database</caption>
+            <caption className="sr-only">You and the people who share a project with you</caption>
             <thead>
               <tr className="border-b border-zinc-300 dark:border-zinc-700">
                 <th scope="col" className="px-3 py-2 font-medium">Name</th>
