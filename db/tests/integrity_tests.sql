@@ -1,6 +1,6 @@
 -- P1-16: integrity test suite. Every test asserts; any failure stops the run with an error.
 -- Runs inside one transaction that is rolled back, so the database is left unchanged.
--- Needs schema files 01-06 and the synthetic seed.
+-- Needs schema files 01-06, 10_refresh_metrics.sql (P1-15) and the synthetic seed.
 --   podman exec -i cc-postgres psql -U codecollab -v ON_ERROR_STOP=1 < db/tests/integrity_tests.sql
 \set ON_ERROR_STOP on
 \pset pager off
