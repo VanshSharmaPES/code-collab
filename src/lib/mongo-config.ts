@@ -35,15 +35,13 @@ export function assertSafeMongoTarget(env: Record<string, string | undefined>): 
 
 export const COLLECTIONS = {
   activityEvents: "activity_events", // event stream, filled by the outbox worker (P2-10)
-  comments: "comments", // nested comment threads (the comment UI is a later task)
+  comments: "comments", // comment threads on issues and pull requests, stored flat with a parentId (P2-12)
   commitFiles: "commit_files", // per-commit changed-file metadata, loaded from the ingestion spool
   notifications: "notifications", // expiring notifications
 } as const;
 
 // A notification disappears when its own `expiresAt` passes (TTL index with expireAfterSeconds 0).
 export const NOTIFICATION_TTL_INDEX = "notifications_expires_at_ttl";
-
-
 
 // Applied when the notifications collection is created. A TTL index only expires documents whose `expiresAt` is a BSON
 // date; a string or number there would never expire. Only the types are enforced, not the presence of the fields: no
@@ -54,6 +52,7 @@ export const NOTIFICATION_VALIDATOR = {
     properties: { createdAt: { bsonType: "date" }, expiresAt: { bsonType: "date" } },
   },
 } as const;
+
 export type IndexSpec = {
   collection: string;
   name: string;
