@@ -1,5 +1,5 @@
 -- CodeCollab remaining tables (P1-05): the other six of the fourteen.
--- Depends on 01_core.sql. ON DELETE choices are provisional until P1-08.
+-- Depends on 01_core.sql. ON DELETE choices follow docs/on_delete.md (P1-08).
 
 BEGIN;
 
@@ -68,7 +68,7 @@ CREATE TABLE contribution_metrics (
 
 -- Extra integrity rules on the core tables.
 -- Not added: "status = merged requires merged_by". It conflicts with
--- merged_by ON DELETE SET NULL; revisit in P1-08.
+-- merged_by ON DELETE SET NULL (decided in P1-08, see docs/on_delete.md row 15).
 ALTER TABLE users
     ADD CONSTRAINT users_email_lowercase CHECK (email = lower(email)),
     ADD CONSTRAINT users_email_has_at    CHECK (position('@' in email) > 1);

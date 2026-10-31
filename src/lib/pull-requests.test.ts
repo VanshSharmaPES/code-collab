@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  APPROVE_PULL_REQUEST_SQL, GET_PULL_REQUEST_SQL, LIST_PULL_REQUESTS_SQL, MERGE_PULL_REQUEST_SQL, PAGE_SIZE, PULL_REQUEST_STATE_SQL,
+  APPROVE_PULL_REQUEST_SQL, COUNT_PULL_REQUESTS_SQL, GET_PULL_REQUEST_SQL, LIST_PULL_REQUESTS_SQL, MERGE_PULL_REQUEST_SQL, PAGE_SIZE, PULL_REQUEST_STATE_SQL,
   PullRequestMirroredError, PullRequestNotFoundError, PullRequestRuleError, PullRequestStatusError,
   TRANSITION_PULL_REQUEST_SQL, canChangePullRequest, countPullRequests, getPullRequest, listPullRequests, transitionPullRequest,
 } from "./pull-requests";
@@ -9,6 +9,7 @@ import {
   ACTION_ERRORS, PR_ACTIONS, PR_STATUSES, approveErrorCode, availableActions, isPullRequestStatus, mergeErrorCode, parsePullRequestAction,
 } from "./pull-request-input";
 import { config as proxyConfig } from "../proxy";
+import { managerSql, participantSql } from "./project-access";
 
 test("no query selects user emails or password hashes, or uses SELECT *", () => {
   for (const sql of [LIST_PULL_REQUESTS_SQL, GET_PULL_REQUEST_SQL]) assert.doesNotMatch(sql, /password|email|\*/i);
@@ -16,11 +17,11 @@ test("no query selects user emails or password hashes, or uses SELECT *", () => 
 
 test("filters and paging are bound parameters", async () => {
   let seen: readonly unknown[] = [];
-  await listPullRequests({ repositoryId: "4", status: "open" }, 3, PAGE_SIZE, async (_t, p) => { seen = p; return []; });
-  assert.deepEqual(seen, ["4", "open", PAGE_SIZE, 2 * PAGE_SIZE]);
-  assert.equal(await countPullRequests({ repositoryId: null, status: null }, async () => [{ n: 7 }]), 7);
-  assert.equal(await countPullRequests({ repositoryId: null, status: null }, async () => []), 0);
-  assert.equal(await getPullRequest("5", async () => []), null);
+  await listPullRequests({ repositoryId: "4", status: "open" }, 3, PAGE_SIZE, "77", async (_t, p) => { seen = p; return []; });
+  assert.deepEqual(seen, ["4", "open", PAGE_SIZE, 2 * PAGE_SIZE, "77"]); // the last one is the viewer
+  assert.equal(await countPullRequests({ repositoryId: null, status: null }, "77", async () => [{ n: 7 }]), 7);
+  assert.equal(await countPullRequests({ repositoryId: null, status: null }, "77", async () => []), 0);
+  assert.equal(await getPullRequest("5", "77", async () => []), null);
 });
 
 test("the detail query returns the mirror flag that decides whether the actions show", () => {
@@ -53,7 +54,10 @@ test("close/reopen SQL: audit actor, mirror guard, one statement, and it can nev
   assert.equal(TRANSITION_PULL_REQUEST_SQL.split(";").length, 1);
   assert.match(TRANSITION_PULL_REQUEST_SQL, /set_config\('codecollab\.actor_id', \$4::text, true\)/);
   assert.match(TRANSITION_PULL_REQUEST_SQL, /pr\.status = ANY\(\$3::text\[\]\)/);
-  assert.match(TRANSITION_PULL_REQUEST_SQL, /r\.github_url IS NULL\) RETURNING pr\.id\)/);
+  // Only a manager (mentor or team lead) or the author, who must still take part in the project, can close or reopen.
+  assert.ok(TRANSITION_PULL_REQUEST_SQL.includes(`r.github_url IS NULL AND (${managerSql("$4", "r.project_id")} OR (pr.author_id = $4::bigint AND ${participantSql("$4", "r.project_id")}))) RETURNING pr.id)`));
+  // A pull request of a project the actor takes no part in is reported as missing (status stays NULL).
+  assert.ok(TRANSITION_PULL_REQUEST_SQL.includes(`WHERE x.id = $1::bigint AND ${participantSql("$4", "r.project_id")}) AS status`));
   assert.match(TRANSITION_PULL_REQUEST_SQL, /\$2::text IN \('open', 'closed'\)/);
   assert.doesNotMatch(TRANSITION_PULL_REQUEST_SQL, /merged/); // no merge columns: merging is the procedure's job
 });
@@ -95,7 +99,7 @@ const pgError = (code: string, message = "db") => Object.assign(new Error(messag
 
 test("approve writes a pr_reviews row and updates the status in the same statement, with the reviewer and actor", async () => {
   assert.match(APPROVE_PULL_REQUEST_SQL, /^WITH rev AS \(INSERT INTO pr_reviews \(pull_request_id, reviewer_id, verdict\) SELECT pr\.id, \$2::bigint, 'approved'/);
-  assert.match(APPROVE_PULL_REQUEST_SQL, /pr\.status IN \('open', 'approved'\) AND r\.github_url IS NULL RETURNING pull_request_id\)/);
+  assert.ok(APPROVE_PULL_REQUEST_SQL.includes(`pr.status IN ('open', 'approved') AND r.github_url IS NULL AND ${participantSql("$2", "r.project_id")} RETURNING pull_request_id)`)); // only participants can review
   assert.match(APPROVE_PULL_REQUEST_SQL, /UPDATE pull_requests pr SET status = 'approved', updated_at = now\(\) FROM rev, \(SELECT set_config\('codecollab\.actor_id', \$2::text, true\)\) AS actor WHERE pr\.id = rev\.pull_request_id AND pr\.status = 'open'/);
   assert.equal(APPROVE_PULL_REQUEST_SQL.split(";").length, 1);
   const { calls, run } = script({ [APPROVE_PULL_REQUEST_SQL]: [{ reviewed: "5", updated: "5" }] });
@@ -145,7 +149,7 @@ test("merge calls merge_pull_request with the pull request and the merger, and n
   assert.equal(MERGE_PULL_REQUEST_SQL, "CALL merge_pull_request($1::bigint, $2::bigint)");
   const { calls, run } = script({ [PULL_REQUEST_STATE_SQL]: [{ id: null, mirrored: false, status: "approved" }] });
   await transitionPullRequest("5", "merge", "9", run);
-  assert.deepEqual(calls, [{ text: PULL_REQUEST_STATE_SQL, params: ["5"] }, { text: MERGE_PULL_REQUEST_SQL, params: ["5", "9"] }]);
+  assert.deepEqual(calls, [{ text: PULL_REQUEST_STATE_SQL, params: ["5", "9"] }, { text: MERGE_PULL_REQUEST_SQL, params: ["5", "9"] }]);
   for (const c of calls) assert.doesNotMatch(c.text, /UPDATE\s+pull_requests/i);
 });
 
@@ -203,4 +207,32 @@ test("the proxy protects issues, pull requests and users, and leaves the home pa
   const m = proxyConfig.matcher;
   for (const path of ["/issues", "/issues/:path*", "/pull-requests", "/pull-requests/:path*", "/users", "/users/:path*"]) assert.ok(m.includes(path), path);
   for (const path of ["/", "/api/:path*", "/api/auth/login", "/api/health/db", "/(.*)", "/:path*"]) assert.ok(!m.includes(path), `${path} must stay public`);
+});
+
+// ---- who may act
+
+test("a pull request of a project the actor takes no part in looks like a missing one, for every action", async () => {
+  const hidden = { [PULL_REQUEST_STATE_SQL]: [], [TRANSITION_PULL_REQUEST_SQL]: [{ id: null, mirrored: null, status: null, permitted: null }], [APPROVE_PULL_REQUEST_SQL]: [{ reviewed: null, updated: null }] };
+  for (const action of ["approve", "merge", "close", "reopen"] as const) {
+    const { calls, run } = script(hidden);
+    await assert.rejects(transitionPullRequest("5", action, "9", run), PullRequestNotFoundError, action);
+    assert.ok(!calls.some((c) => c.text === MERGE_PULL_REQUEST_SQL), "the merge procedure is not called for a hidden pull request");
+  }
+});
+
+test("a participant who is neither the author nor a manager cannot close or reopen, and is told so", async () => {
+  const denied = script({ [TRANSITION_PULL_REQUEST_SQL]: [{ id: null, mirrored: false, status: "open", permitted: false }] });
+  await assert.rejects(transitionPullRequest("5", "close", "9", denied.run), (err) =>
+    err instanceof PullRequestRuleError && err.code === "forbidden" && /author, a team lead or the mentor/.test(ACTION_ERRORS[err.code]));
+  const allowed = script({ [TRANSITION_PULL_REQUEST_SQL]: [{ id: "5", mirrored: false, status: "open", permitted: true }] });
+  await transitionPullRequest("5", "close", "9", allowed.run);
+  // a wrong status for someone who may act is still reported as a status problem, not as forbidden
+  await assert.rejects(transitionPullRequest("5", "reopen", "9", script({ [TRANSITION_PULL_REQUEST_SQL]: [{ id: null, mirrored: false, status: "open", permitted: true }] }).run), PullRequestStatusError);
+});
+
+test("the pull request list, count and detail queries only return projects the viewer takes part in", () => {
+  assert.ok(LIST_PULL_REQUESTS_SQL.includes(participantSql("$5", "r.project_id")));
+  assert.ok(COUNT_PULL_REQUESTS_SQL.includes(participantSql("$3", "r.project_id")));
+  assert.ok(GET_PULL_REQUEST_SQL.includes(participantSql("$2", "r.project_id")));
+  assert.ok(PULL_REQUEST_STATE_SQL.includes(participantSql("$2", "r.project_id")));
 });
