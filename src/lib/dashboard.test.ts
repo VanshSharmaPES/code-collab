@@ -18,6 +18,10 @@ test("every dashboard query is limited to projects the viewer manages, with the 
   }
 });
 
+test("top contributors are ordered by numeric project_id, then rank, then numeric user_id", () => {
+  assert.match(TOP_CONTRIBUTORS_SQL, /ORDER BY project_id::bigint, rank, user_id::bigint$/);
+});
+
 test("the queries keep the P1-13 definitions: top three by rank, stale after 14 days for high and critical, anti-join, eight buckets", () => {
   assert.match(TOP_CONTRIBUTORS_SQL, /RANK\(\) OVER \(PARTITION BY m\.project_id ORDER BY m\.score DESC\)/);
   assert.match(TOP_CONTRIBUTORS_SQL, /WHERE rank <= 3/);

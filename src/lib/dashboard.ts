@@ -16,7 +16,7 @@ export const TOP_CONTRIBUTORS_SQL =
   "SELECT project_id::text AS project_id, project_name, rank::int AS rank, user_id::text AS user_id, full_name, score, " +
   "round(100 * score / nullif(project_total, 0), 1) AS pct_of_project FROM (" +
   "SELECT m.*, RANK() OVER (PARTITION BY m.project_id ORDER BY m.score DESC) AS rank, SUM(m.score) OVER (PARTITION BY m.project_id) AS project_total " +
-  `FROM member_contribution_v m WHERE ${managerSql("$1", "m.project_id")}) ranked WHERE rank <= 3 ORDER BY project_id, rank, user_id`;
+  `FROM member_contribution_v m WHERE ${managerSql("$1", "m.project_id")}) ranked WHERE rank <= 3 ORDER BY project_id::bigint, rank, user_id::bigint`;
 
 // Q2: high and critical issues that are still unresolved and have not been touched for more than STALE_DAYS days.
 export const STALE_ISSUES_SQL =
