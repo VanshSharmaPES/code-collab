@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { parseId } from "@/lib/issue-input";
-import { SCORE_WEIGHTS, listMemberContributions, listProjects, type MemberContribution, type ProjectOption } from "@/lib/contributions";
+import { listMemberContributions, listProjects, type MemberContribution, type ProjectOption } from "@/lib/contributions";
 
 export const metadata: Metadata = { title: "Contributions | CodeCollab" };
 
@@ -75,8 +75,8 @@ export default async function ContributionsPage({ searchParams }: { searchParams
             </div>
           )}
           <p className="mt-4 text-xs text-zinc-600 dark:text-zinc-400">
-            Score = {SCORE_WEIGHTS.commits} × commits + {SCORE_WEIGHTS.prs_merged} × merged PRs + {SCORE_WEIGHTS.reviews_given} × reviews + {SCORE_WEIGHTS.issues_closed} × issues closed
-            by the member&apos;s merged PRs. Select a member to see the records behind their numbers.
+            The score is calculated by the database from commits, merged PRs, reviews and issues closed by the member&apos;s
+            merged PRs; opened PRs are counted but do not score. Select a member to see the records behind their numbers.
           </p>
         </>
       )}
