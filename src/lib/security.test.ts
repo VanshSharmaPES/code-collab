@@ -159,6 +159,11 @@ const ACCESS_HELPER_HOLES = new Set(["projectId", "v"]);
 const PULL_REQUESTS_FILE = join(process.cwd(), "src", "lib", "pull-requests.ts");
 const PR_WHERE_CALL = /^prWhere\("\$[1-9]\d?"\)$/;
 const PR_WHERE_BODY_HOLE = 'participantSql(viewer, "r.project_id")';
+// dashboard.ts (the analytics dashboard) puts three module constants into its queries: the row cap ROW_LIMIT and the
+// staleness window STALE_DAYS, both plain integer literals, and SCORES, a fixed sub-select whose only hole is the shared
+// managerSql call. Allowed in that file only, and only under these names; the test below pins what each one holds.
+const DASHBOARD_FILE = join(process.cwd(), "src", "lib", "dashboard.ts");
+const DASHBOARD_HOLES = new Set(["ROW_LIMIT", "STALE_DAYS", "SCORES"]);
 
 // Words that start a statement or continue one (the SQL here is upper case, so the match is case-sensitive and ordinary
 // prose is not affected). A template that has one of them, or a $n placeholder, is SQL, including a fragment that begins
@@ -174,7 +179,8 @@ function isAllowedSplice(file: string, hole: string): boolean {
   return (
     isAllowedHole(hole) ||
     (file === ACCESS_HELPER_FILE && ACCESS_HELPER_HOLES.has(hole)) ||
-    (file === PULL_REQUESTS_FILE && (PR_WHERE_CALL.test(hole) || hole === PR_WHERE_BODY_HOLE))
+    (file === PULL_REQUESTS_FILE && (PR_WHERE_CALL.test(hole) || hole === PR_WHERE_BODY_HOLE)) ||
+    (file === DASHBOARD_FILE && DASHBOARD_HOLES.has(hole))
   );
 }
 
@@ -261,6 +267,36 @@ test("scanner: the pull-request WHERE builder is allowed in pull-requests.ts onl
   for (const bad of ['`WHERE ${prWhere(userInput)}`', '`WHERE ${prWhere("$5; DROP TABLE x")}`', '`WHERE ${prWhere("$5") + extra}`', '`WHERE ${participantSql(viewer, col)}`', '`WHERE ${participantSql(viewer, "r.project_id") + x}`', '`WHERE ${managerSql(viewer, "r.project_id")}`']) {
     assert.equal(sqlSplices(PULL_REQUESTS_FILE, `const q = ${bad};`).length, 1, bad);
   }
+});
+
+test("scanner: the dashboard constants are allowed in dashboard.ts only, and only under their exact names", () => {
+  const other = join(process.cwd(), "src", "lib", "other.ts");
+  const uses = ["`WHERE a = $1 LIMIT ${ROW_LIMIT}`", "`AND i.updated_at < now() - interval '${STALE_DAYS} days'`", "`WITH scores AS (${SCORES}) SELECT 1`"];
+  for (const use of uses) {
+    assert.deepEqual(sqlSplices(DASHBOARD_FILE, `const q = ${use};`), [], use);
+    assert.equal(sqlSplices(other, `const q = ${use};`).length, 1, `the same use elsewhere: ${use}`);
+  }
+  for (const bad of ["`LIMIT ${userLimit}`", "`LIMIT ${ROW_LIMIT + 1}`", "`LIMIT ${Number(ROW_LIMIT)}`", "`WITH s AS (${SCORES2}) SELECT 1`", "`WITH s AS (${scores}) SELECT 1`", "`WHERE ${managerSql(viewer, \"m.project_id\")}`"]) {
+    assert.equal(sqlSplices(DASHBOARD_FILE, `const q = ${bad};`).length, 1, bad);
+  }
+});
+
+// Branches without the dashboard (#24) have no dashboard.ts and nothing uses the allowance there; the pin then runs as
+// skipped, and it runs wherever the file exists.
+const dashboardSource = (() => { try { return readFileSync(DASHBOARD_FILE, "utf8"); } catch { return null; } })();
+
+test("scanner: ROW_LIMIT and STALE_DAYS are integer literals and SCORES only wraps the shared managerSql call", { skip: dashboardSource === null && "src/lib/dashboard.ts is not present on this branch" }, () => {
+  const text = dashboardSource as string;
+  for (const name of ["ROW_LIMIT", "STALE_DAYS"]) {
+    assert.equal([...text.matchAll(new RegExp(`\\b${name}\\s*=`, "g"))].length, 1, `${name} is assigned exactly once`);
+    assert.match(text, new RegExp(`export const ${name} = \\d+;`), `${name} is a plain integer literal`);
+  }
+  const definitions = [...text.matchAll(/\bSCORES\s*=\s*(`[^`]*`);/g)];
+  assert.equal(definitions.length, 1, "SCORES is assigned exactly once, to one template");
+  assert.equal([...text.matchAll(/\bSCORES\s*=/g)].length, 1, "and nowhere else");
+  const holes = [...definitions[0][1].matchAll(/\$\{([^}]*)\}/g)].map((h) => h[1].trim());
+  assert.ok(holes.length >= 1);
+  for (const hole of holes) assert.match(hole, ACCESS_FRAGMENT_CALL, `SCORES may only splice the shared access fragment: ${hole}`);
 });
 
 // Some branches have no pull-requests.ts, or an older one without prWhere: nothing uses the allowance there, so this pin is
