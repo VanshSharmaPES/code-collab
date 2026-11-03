@@ -35,7 +35,7 @@ export function assertSafeMongoTarget(env: Record<string, string | undefined>): 
 
 export const COLLECTIONS = {
   activityEvents: "activity_events", // event stream, filled by the outbox worker (P2-10)
-  comments: "comments", // nested comment threads (the comment UI is a later task)
+  comments: "comments", // comment threads on issues and pull requests, stored flat with a parentId (P2-12)
   commitFiles: "commit_files", // per-commit changed-file metadata, loaded from the ingestion spool
   notifications: "notifications", // expiring notifications
 } as const;
