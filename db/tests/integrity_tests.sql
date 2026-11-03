@@ -71,7 +71,8 @@ WHERE p.status = 'active'
                 AND NOT EXISTS (SELECT 1 FROM pr_reviews v WHERE v.pull_request_id = x.id AND v.verdict = 'changes_requested'))
 ORDER BY p.id LIMIT 1;
 SELECT pg_temp.expect_true('fixtures found (project, lead, member, mentor, mergeable PR)',
-  '(SELECT count(*) FROM fx WHERE project IS NOT NULL AND lead IS NOT NULL AND member IS NOT NULL AND mentor IS NOT NULL AND pr IS NOT NULL) = 1');
+  '(SELECT count(*) FROM fx WHERE project IS NOT NULL AND lead IS NOT NULL AND member IS NOT NULL AND mentor IS NOT NULL AND pr IS NOT NULL
+      AND (SELECT author_id FROM pull_requests WHERE id = fx.pr) IS DISTINCT FROM mentor) = 1');
 
 \echo '--- CHECK constraints (23514)'
 SELECT pg_temp.expect_error('users.role must be a known role',
@@ -89,7 +90,7 @@ SELECT pg_temp.expect_error('commit sha must be hex',
 SELECT pg_temp.expect_error('commit additions cannot be negative',
   format($q$INSERT INTO commits (repository_id, sha, message, additions, committed_at) VALUES (%s, 'abcdef1', 'm', -1, now())$q$, (SELECT repo FROM fx)), '23514', 'commits_additions_check');
 SELECT pg_temp.expect_error('review verdict must be known',
-  format($q$INSERT INTO pr_reviews (pull_request_id, reviewer_id, verdict) VALUES (%s, %s, 'maybe')$q$, (SELECT pr FROM fx), (SELECT member FROM fx)), '23514', 'pr_reviews_verdict_check');
+  format($q$INSERT INTO pr_reviews (pull_request_id, reviewer_id, verdict) VALUES (%s, %s, 'maybe')$q$, (SELECT pr FROM fx), (SELECT mentor FROM fx)), '23514', 'pr_reviews_verdict_check');
 SELECT pg_temp.expect_error('label colour must be #rrggbb',
   format($q$INSERT INTO labels (project_id, name, color) VALUES (%s, 'x', 'red')$q$, (SELECT project FROM fx)), '23514', 'labels_color_check');
 SELECT pg_temp.expect_error('metrics cannot be negative',
