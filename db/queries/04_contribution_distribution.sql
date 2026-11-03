@@ -1,4 +1,5 @@
 -- Q4a: histogram of contribution scores across all members, eight equal-width buckets.
+-- Keep in step with src/lib/dashboard.ts: the dashboard runs this query with a manager filter added.
 -- width_bucket() assigns each score to a bucket. generate_series() supplies all eight
 -- buckets, so an empty range still appears as a row with 0 members instead of vanishing
 -- from the chart. The bar column is a quick text chart.

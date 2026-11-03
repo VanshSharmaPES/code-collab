@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
-import { STALE_DAYS, getDashboard, type Dashboard } from "@/lib/dashboard";
+import { ROW_LIMIT, STALE_DAYS, allScoresEqual, getDashboard, isCapped, type Dashboard } from "@/lib/dashboard";
 import { formatLabel } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Dashboard | CodeCollab" };
@@ -45,7 +45,7 @@ export default async function DashboardPage() {
         <div className="mt-8 flex flex-col gap-10">
           <section>
             <h2 className={H2}>Top contributors</h2>
-            <p className={NOTE}>The three highest contribution scores in each project, with their share of the project total.</p>
+            <p className={NOTE}>The top three ranks in each project (people who tie share a rank, so a project can list more than three), with their share of the project total.</p>
             {topContributors.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">No data.</p> : (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
@@ -70,7 +70,7 @@ export default async function DashboardPage() {
 
           <section>
             <h2 className={H2}>Stale high-priority issues</h2>
-            <p className={NOTE}>High and critical issues that are still open or in progress and have not changed for more than {STALE_DAYS} days. Critical first, then the longest neglected (showing the first 50 results).</p>
+            <p className={NOTE}>High and critical issues that are still open or in progress and have not changed for more than {STALE_DAYS} days. Critical first, then the longest neglected.{isCapped(staleIssues.length) && ` Showing the first ${ROW_LIMIT} results.`}</p>
             {staleIssues.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">None.</p> : (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
@@ -96,7 +96,7 @@ export default async function DashboardPage() {
 
           <section>
             <h2 className={H2}>Members who never review</h2>
-            <p className={NOTE}>Team members with no review on any pull request of their project, most active first (showing the first 50 results).</p>
+            <p className={NOTE}>Team members with no review on any pull request of their project, most active first.{isCapped(nonReviewers.length) && ` Showing the first ${ROW_LIMIT} results.`}</p>
             {nonReviewers.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Everyone has reviewed at least once.</p> : (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
@@ -121,7 +121,9 @@ export default async function DashboardPage() {
           <section>
             <h2 className={H2}>Contribution distribution</h2>
             <p className={NOTE}>How many members fall into each of eight equal score ranges, and summary statistics for {stats.members} members.</p>
-            {buckets.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">No data.</p> : (
+            {buckets.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">No data.</p> : allScoresEqual(stats) ? (
+              <p className="mt-3 text-sm">All {stats.members} members score {stats.min}.</p>
+            ) : (
               <ol className="mt-3 flex flex-col gap-1 text-sm" aria-label="Members per score range">
                 {buckets.map((b) => (
                   <li key={b.bucket} className="grid grid-cols-[9rem_1fr_3rem] items-center gap-3">

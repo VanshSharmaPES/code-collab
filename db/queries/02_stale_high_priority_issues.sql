@@ -1,4 +1,5 @@
 -- Q2: high and critical issues that are still unresolved and have not been touched for
+-- Keep in step with src/lib/dashboard.ts: the dashboard runs this query with a manager filter added.
 -- more than 14 days. Most urgent and longest-neglected first.
 -- Change the interval to tune what "stale" means.
 SELECT p.id    AS project_id,

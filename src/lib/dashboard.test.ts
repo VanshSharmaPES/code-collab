@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  DISTRIBUTION_SQL, NON_REVIEWERS_SQL, ROW_LIMIT, SCORE_STATS_SQL, STALE_DAYS, STALE_ISSUES_SQL, TOP_CONTRIBUTORS_SQL, getDashboard,
+  DISTRIBUTION_SQL, NON_REVIEWERS_SQL, ROW_LIMIT, SCORE_STATS_SQL, STALE_DAYS, STALE_ISSUES_SQL, TOP_CONTRIBUTORS_SQL, allScoresEqual, getDashboard, isCapped,
   toBucket, toNonReviewer, toStaleIssue, toStats, toTopContributor,
 } from "./dashboard";
 import { managerSql } from "./project-access";
@@ -13,9 +13,34 @@ test("every dashboard query is limited to projects the viewer manages, with the 
   assert.ok(DISTRIBUTION_SQL.includes(managerSql("$1", "m.project_id")));
   assert.ok(SCORE_STATS_SQL.includes(managerSql("$1", "m.project_id")));
   for (const sql of [TOP_CONTRIBUTORS_SQL, STALE_ISSUES_SQL, NON_REVIEWERS_SQL, DISTRIBUTION_SQL, SCORE_STATS_SQL]) {
-    assert.doesNotMatch(sql, /password|email|SELECT \*|\$\{/i);
+    // No credentials, and no star of any kind (`SELECT *`, `SELECT m.*`): a column added to a view later must not reach the page.
+    assert.doesNotMatch(sql, /password|email|SELECT\s+(?:\w+\.)?\*|,\s*(?:\w+\.)?\*\s*,/i);
+    assert.doesNotMatch(sql, /\$\{|undefined|\[object/); // an unexpanded or broken interpolation would show up in the text
     assert.doesNotMatch(sql, /\$[2-9]/); // the viewer is the only parameter
   }
+});
+
+test("the histogram edges keep one decimal, so a narrow score range does not produce equal or overlapping labels", () => {
+  assert.match(DISTRIBUTION_SQL, /\/ 8, 1\) AS from_score/);
+  assert.match(DISTRIBUTION_SQL, /\/ 8, 1\) AS to_score/);
+  assert.doesNotMatch(DISTRIBUTION_SQL, /\/ 8, 0\)/);
+  assert.match(SCORE_STATS_SQL, /min\(score\)::numeric\(10,1\) AS min/);
+  assert.match(SCORE_STATS_SQL, /max\(score\)::numeric\(10,1\) AS max/);
+});
+
+test("one line replaces the histogram only when every score is the same", () => {
+  const stats = (members: number, min: number | null, max: number | null) => toStats({ members, min, max });
+  assert.equal(allScoresEqual(stats(6, 8, 8)), true);
+  assert.equal(allScoresEqual(stats(6, 0, 5)), false);
+  assert.equal(allScoresEqual(stats(0, null, null)), false, "no members: nothing to say");
+  assert.equal(allScoresEqual(stats(1, 4, 4)), true);
+});
+
+test("a list says it was cut off only when it has reached the row limit", () => {
+  assert.equal(isCapped(0), false);
+  assert.equal(isCapped(3), false);
+  assert.equal(isCapped(ROW_LIMIT - 1), false);
+  assert.equal(isCapped(ROW_LIMIT), true);
 });
 
 test("top contributors are ordered by numeric project_id, then rank, then numeric user_id", () => {
@@ -53,7 +78,9 @@ test("the dashboard runs the five queries with the viewer, and shows no histogra
     [DISTRIBUTION_SQL]: Array.from({ length: 8 }, (_, i) => ({ bucket: i + 1, from_score: null, to_score: null, members: 0 })),
     [SCORE_STATS_SQL]: [{ members: "0", min: null }],
   };
-  const d = await getDashboard("42", async (text, params) => { calls.push({ text, params }); return rows[text] ?? []; });
+  const known = new Set([TOP_CONTRIBUTORS_SQL, STALE_ISSUES_SQL, NON_REVIEWERS_SQL, DISTRIBUTION_SQL, SCORE_STATS_SQL]);
+  // A query this test does not know fails loudly instead of quietly returning no rows.
+  const d = await getDashboard("42", async (text, params) => { assert.ok(known.has(text), `unexpected query: ${text.slice(0, 60)}`); calls.push({ text, params }); return rows[text] ?? []; });
   assert.equal(calls.length, 5);
   for (const c of calls) assert.deepEqual(c.params, ["42"]);
   assert.deepEqual(d.buckets, []);

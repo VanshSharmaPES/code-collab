@@ -4,18 +4,26 @@ import { managerSql } from "@/lib/project-access";
 
 type RunQuery<T> = (text: string, params: readonly unknown[]) => Promise<T[]>;
 
-// The four relational analytical queries of P1-13 (db/queries/01..04), shown on the dashboard (P2-13). Each is the P1-13
-// query with one addition: only projects the viewer manages (its mentor, or the lead of one of its teams) are included,
-// and the viewer ($1) is always the signed-in user. They read the views and functions of P1-11 and P1-12
-// (member_contribution_v, contribution_counts), so db/schema/05 and 06 must be applied. The size of the lists is capped.
+// The four relational analytical queries of P1-13, shown on the dashboard (P2-13):
+//   TOP_CONTRIBUTORS_SQL  = db/queries/01_top_contributors.sql
+//   STALE_ISSUES_SQL      = db/queries/02_stale_high_priority_issues.sql
+//   NON_REVIEWERS_SQL     = db/queries/03_reviewers_who_do_not_review.sql
+//   DISTRIBUTION_SQL      = Q4a in db/queries/04_contribution_distribution.sql
+//   SCORE_STATS_SQL       = Q4b in db/queries/04_contribution_distribution.sql
+// Each is the P1-13 query with one addition: only projects the viewer manages (its mentor, or the lead of one of its
+// teams) are included, and the viewer ($1) is always the signed-in user. The SQL is written twice, here and in
+// db/queries/, so a change to one must be made in the other (each db/queries file says so too). They read the views and
+// functions of P1-11 and P1-12 (member_contribution_v, contribution_counts), so db/schema/05 and 06 must be applied.
+// Two lists are capped at ROW_LIMIT rows.
 export const ROW_LIMIT = 50;
 export const STALE_DAYS = 14;
 
-// Q1: top three contributors per project by contribution score, with their share of the project total.
+// Q1: top three ranks per project by contribution score (ties share a rank, so a tie can show more than three people),
+// with their share of the project total. It has no LIMIT: at most about three rows per managed project.
 export const TOP_CONTRIBUTORS_SQL =
   "SELECT project_id::text AS project_id, project_name, rank::int AS rank, user_id::text AS user_id, full_name, score, " +
   "round(100 * score / nullif(project_total, 0), 1) AS pct_of_project FROM (" +
-  "SELECT m.*, RANK() OVER (PARTITION BY m.project_id ORDER BY m.score DESC) AS rank, SUM(m.score) OVER (PARTITION BY m.project_id) AS project_total " +
+  "SELECT m.project_id, m.project_name, m.user_id, m.full_name, m.score, RANK() OVER (PARTITION BY m.project_id ORDER BY m.score DESC) AS rank, SUM(m.score) OVER (PARTITION BY m.project_id) AS project_total " +
   `FROM member_contribution_v m WHERE ${managerSql("$1", "m.project_id")}) ranked WHERE rank <= 3 ORDER BY project_id::bigint, rank, user_id::bigint`;
 
 // Q2: high and critical issues that are still unresolved and have not been touched for more than STALE_DAYS days.
@@ -35,19 +43,20 @@ export const NON_REVIEWERS_SQL =
   "ON reviewed.project_id = m.project_id AND reviewed.reviewer_id = m.user_id CROSS JOIN LATERAL contribution_counts(u.id, p.id) c " +
   `WHERE reviewed.reviewer_id IS NULL AND ${managerSql("$1", "p.id")} ORDER BY c.commits DESC, p.id, u.id LIMIT ${ROW_LIMIT}`;
 
-// Q4a: histogram of contribution scores in eight equal-width buckets (empty ranges still appear with 0 members).
+// Q4a: histogram of contribution scores in eight equal-width buckets (empty ranges still appear with 0 members). The bucket
+// edges are fractional, so they are shown with one decimal; whole numbers would make neighbouring ranges look equal.
 // Q4b: summary statistics for the same scores. Both cover only the members of projects the viewer manages.
 const SCORES = `SELECT m.score FROM member_contribution_v m WHERE ${managerSql("$1", "m.project_id")}`;
 export const DISTRIBUTION_SQL =
   `WITH scores AS (${SCORES}), bounds AS (SELECT min(score) AS lo, max(score) + 0.01 AS hi FROM scores), ` +
   "counted AS (SELECT width_bucket(s.score, b.lo, b.hi, 8) AS bucket, count(*) AS members FROM scores s CROSS JOIN bounds b GROUP BY 1) " +
-  "SELECT g.bucket::int AS bucket, round(b.lo + (g.bucket - 1) * (b.hi - b.lo) / 8, 0) AS from_score, round(b.lo + g.bucket * (b.hi - b.lo) / 8, 0) AS to_score, " +
+  "SELECT g.bucket::int AS bucket, round(b.lo + (g.bucket - 1) * (b.hi - b.lo) / 8, 1) AS from_score, round(b.lo + g.bucket * (b.hi - b.lo) / 8, 1) AS to_score, " +
   "coalesce(c.members, 0) AS members FROM generate_series(1, 8) AS g(bucket) CROSS JOIN bounds b LEFT JOIN counted c USING (bucket) ORDER BY g.bucket";
 export const SCORE_STATS_SQL =
-  `WITH scores AS (${SCORES}) SELECT count(*) AS members, min(score) AS min, ` +
+  `WITH scores AS (${SCORES}) SELECT count(*) AS members, min(score)::numeric(10,1) AS min, ` +
   "percentile_cont(0.25) WITHIN GROUP (ORDER BY score)::numeric(10,1) AS p25, percentile_cont(0.50) WITHIN GROUP (ORDER BY score)::numeric(10,1) AS median, " +
   "percentile_cont(0.75) WITHIN GROUP (ORDER BY score)::numeric(10,1) AS p75, percentile_cont(0.90) WITHIN GROUP (ORDER BY score)::numeric(10,1) AS p90, " +
-  "max(score) AS max, round(avg(score), 1) AS mean, round(stddev_pop(score), 1) AS stddev FROM scores";
+  "max(score)::numeric(10,1) AS max, round(avg(score), 1) AS mean, round(stddev_pop(score), 1) AS stddev FROM scores";
 
 // PostgreSQL returns bigint and numeric columns as strings; the page works with numbers.
 const num = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
@@ -66,6 +75,11 @@ export const toStaleIssue = (r: Raw): StaleIssue => ({ project_id: String(r.proj
 export const toNonReviewer = (r: Raw): NonReviewer => ({ project_id: String(r.project_id), project_name: String(r.project_name), user_id: String(r.user_id), full_name: String(r.full_name), user_role: String(r.user_role), commits: num(r.commits), prs_opened: num(r.prs_opened) });
 export const toBucket = (r: Raw): Bucket => ({ bucket: num(r.bucket), from_score: numOrNull(r.from_score), to_score: numOrNull(r.to_score), members: num(r.members) });
 export const toStats = (r: Raw | undefined): ScoreStats => ({ members: num(r?.members), min: numOrNull(r?.min), p25: numOrNull(r?.p25), median: numOrNull(r?.median), p75: numOrNull(r?.p75), p90: numOrNull(r?.p90), max: numOrNull(r?.max), mean: numOrNull(r?.mean), stddev: numOrNull(r?.stddev) });
+
+// Every score is the same: the eight ranges would all read alike, so the page shows one line instead.
+export const allScoresEqual = (s: ScoreStats): boolean => s.members > 0 && s.min !== null && s.min === s.max;
+// A list cut off at ROW_LIMIT rows is the only one that needs to say so.
+export const isCapped = (shown: number): boolean => shown >= ROW_LIMIT;
 
 export async function getDashboard(viewerId: string, run: RunQuery<Raw> = query<Raw>): Promise<Dashboard> {
   const args = [viewerId];
