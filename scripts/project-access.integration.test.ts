@@ -3,6 +3,7 @@
 //   TEST_PG_ADMIN_URL=postgresql://USER:PASSWORD@localhost:5433/postgres npm test
 // It creates its own database (cc_access_test_*), applies the schema there, and drops only that database.
 // The self-review trigger and the merge procedure are applied too when db/schema/03 and 04 are present in this checkout.
+// The outbox (db/schema/07) is applied too when present, to check the actor recorded on merge events.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -24,6 +25,7 @@ if (adminUrl) {
 }
 const schema = (f: string) => join(process.cwd(), "db/schema", f);
 const haveRules = existsSync(schema("03_merge_pull_request.sql")) && existsSync(schema("04_triggers.sql"));
+const haveOutbox = existsSync(schema("07_outbox.sql"));
 const input = { title: "t", body: null, status: "open", priority: "low" } as const;
 
 // People: users 1..9. Project A: mentor 1, team lead 2, members 3 (also PR author) and 4. Project B: mentor 5, lead 6, member 7.
@@ -46,7 +48,7 @@ describe("project access against a real PostgreSQL", { skip: adminUrl ? false : 
     const u = new URL(adminUrl as string); u.pathname = `/${dbName}`;
     db = new Client({ connectionString: u.toString() });
     await db.connect();
-    for (const f of ["01_core.sql", "02_rest.sql", ...(haveRules ? ["03_merge_pull_request.sql", "04_triggers.sql"] : [])]) await db.query(readFileSync(schema(f), "utf8"));
+    for (const f of ["01_core.sql", "02_rest.sql", ...(haveRules ? ["03_merge_pull_request.sql", "04_triggers.sql"] : []), ...(haveOutbox ? ["07_outbox.sql"] : [])]) await db.query(readFileSync(schema(f), "utf8"));
     for (let i = 1; i <= 8; i++) await q("insert into users (email, full_name, password_hash, role) values ($1, $2, 'x', $3)", [`u${i}@t.test`, `User ${i}`, i === 1 || i === 5 ? "mentor" : i === 2 || i === 6 ? "lead" : "student"]);
     await q("insert into projects (name, mentor_id) values ('A', 1), ('B', 5)");
     await q("insert into teams (project_id, name, lead_id) values (1, 'ta', 2), (2, 'tb', 6)");
@@ -180,5 +182,18 @@ describe("project access against a real PostgreSQL", { skip: adminUrl ? false : 
     const mpr = (await q("insert into pull_requests (repository_id, number, title, author_id) values ($1, 9, 'mirrored pr', 3) returning id", [mirror])).rows[0].id;
     await assert.rejects(transitionPullRequest(mpr, "close", MEMBER_A, run));
     assert.equal(await status(mpr), "open");
+  });
+
+  it("the merge procedure records the merger as the actor and refuses a mirrored pull request on its own", { skip: haveRules ? false : "03/04 schema files are not in this checkout" }, async () => {
+    if (haveOutbox) {
+      const events = await q("select payload->>'actorId' as actor from outbox where aggregate_type = 'pull_request' and aggregate_id = $1 and payload->>'newStatus' = 'merged'", [prA]);
+      assert.deepEqual(events.rows, [{ actor: LEAD_A }]); // prA was merged by LEAD_A above
+    }
+    // Called directly, without the app's own mirror check: an approved, reviewed pull request in a mirror.
+    const mirror = (await q("select id from repositories where name = 'mirror-a'")).rows[0].id;
+    const mpr = (await q("insert into pull_requests (repository_id, number, title, author_id, status) values ($1, 10, 'approved mirrored pr', 3, 'approved') returning id", [mirror])).rows[0].id;
+    await q("insert into pr_reviews (pull_request_id, reviewer_id, verdict) values ($1, $2, 'approved')", [mpr, MEMBER_A2]);
+    await assert.rejects(q("call merge_pull_request($1, $2)", [mpr, LEAD_A]), /belongs to a GitHub mirror/);
+    assert.equal(await status(mpr), "approved");
   });
 });

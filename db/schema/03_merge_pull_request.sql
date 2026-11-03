@@ -19,7 +19,7 @@ DECLARE
     v_project_id      BIGINT;
     v_project_status  TEXT;
     v_closed_ids      BIGINT[];
-    v_github_url        TEXT;
+    v_github_url      TEXT;
 BEGIN
     -- 1. Lock the PR row so two simultaneous merges cannot both succeed. A second caller
     --    waits here, then sees status = 'merged' and is rejected below.
@@ -48,15 +48,14 @@ BEGIN
     FROM repositories r JOIN projects p ON p.id = r.project_id
     WHERE r.id = v_pr.repository_id;
 
-
     IF v_project_status <> 'active' THEN
         RAISE EXCEPTION 'merge_pull_request: project % is %, merging is disabled', v_project_id, v_project_status;
     END IF;
 
+    -- A GitHub mirror is read-only here (the app enforces the same rule); its merges happen on GitHub.
     IF v_github_url IS NOT NULL THEN
         RAISE EXCEPTION 'merge_pull_request: pull request % belongs to a GitHub mirror and cannot be merged here', p_pr_id;
     END IF;
-
 
     -- Only a team lead of the project or its mentor may merge.
     IF NOT (EXISTS (SELECT 1 FROM teams WHERE project_id = v_project_id AND lead_id = p_merger_id)
