@@ -42,7 +42,7 @@ for f in db/queries/0*.sql; do
         times=()
         for _ in $(seq "$RUNS"); do
             psql_db < "$TMP/explain.sql" > "$TMP/plan.txt"
-            times+=("$(grep -oP 'Execution Time: \K[0-9.]+' "$TMP/plan.txt")")
+            times+=("$(sed -n 's/^Execution Time: \([0-9.]*\) ms$/\1/p' "$TMP/plan.txt")")
         done
         cp "$TMP/plan.txt" "$OUT/${LABEL}_${name}.txt"
         median=$(printf '%s\n' "${times[@]}" | sort -n | awk '{a[NR]=$1} END {print (NR % 2) ? a[(NR+1)/2] : (a[NR/2] + a[NR/2+1]) / 2}')

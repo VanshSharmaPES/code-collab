@@ -7,6 +7,14 @@
 -- Change the three numbers below to scale up or down.
 
 \set ON_ERROR_STOP on
+
+-- Refuse to run anywhere but codecollab_perf: this adds over a million rows.
+DO $$
+BEGIN
+    IF current_database() <> 'codecollab_perf' THEN
+        RAISE EXCEPTION 'scale_up.sql: refusing to run in database "%"; it is only for codecollab_perf', current_database();
+    END IF;
+END $$;
 \set commits 1000000
 \set issues  150000
 \set prs     80000
