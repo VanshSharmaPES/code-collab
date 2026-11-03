@@ -23,3 +23,7 @@ tmp/
 plan.md
 CodeCollab_Work_Split_Plan.pdf
 .claude/
+
+# TypeScript / Next.js generated
+*.tsbuildinfo
+next-env.d.ts
