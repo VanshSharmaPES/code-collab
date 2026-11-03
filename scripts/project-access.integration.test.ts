@@ -177,8 +177,10 @@ describe("project access against a real PostgreSQL", { skip: adminUrl ? false : 
 
   it("the users list shows the viewer and the people of their projects, and nobody else", async () => {
     const ids = async (who: string) => (await listUsers(who, run)).map((u) => u.id);
-    for (const who of [MENTOR_A, LEAD_A, MEMBER_A, MEMBER_A2]) assert.deepEqual(await ids(who), ["1", "2", "3", "4"], `user ${who}`);
-    for (const who of [MENTOR_B, LEAD_B, MEMBER_B]) assert.deepEqual(await ids(who), ["5", "6", "7"], `user ${who}`);
+    // The viewer comes first, then everyone else by id.
+    const expect = (who: string, all: string[]) => [who, ...all.filter((id) => id !== who)];
+    for (const who of [MENTOR_A, LEAD_A, MEMBER_A, MEMBER_A2]) assert.deepEqual(await ids(who), expect(who, ["1", "2", "3", "4"]), `user ${who}`);
+    for (const who of [MENTOR_B, LEAD_B, MEMBER_B]) assert.deepEqual(await ids(who), expect(who, ["5", "6", "7"]), `user ${who}`);
     assert.deepEqual(await ids(NOBODY), [NOBODY], "someone on no project sees only themselves");
   });
 

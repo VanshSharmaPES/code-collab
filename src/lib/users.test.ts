@@ -32,6 +32,7 @@ test("the row limit and the viewer are bound parameters, not interpolated", asyn
 test("the list is limited to the viewer's projects, never the whole users table", () => {
   assert.match(LIST_USERS_SQL, /WHERE id IN \(SELECT user_id FROM people\)/);
   assert.match(LIST_USERS_SQL, /px\.mentor_id = \$2::bigint/);
+  assert.match(LIST_USERS_SQL, /ORDER BY \(id = \$2::bigint\) DESC, id LIMIT \$1$/); // the viewer first, so the cap never drops them
 });
 
 test("mapping copies only the known fields, even if a row carries extra ones", () => {
