@@ -65,6 +65,7 @@ export function mergeErrorCode(message: string): ActionErrorCode | null {
   if (/has no approving review/.test(message)) return "noApproval";
   if (/has an unresolved change request/.test(message)) return "changesRequested";
   if (/merging is disabled/.test(message)) return "projectInactive";
+  if (/belongs to a GitHub mirror/.test(message)) return "mirrored";
   if (/is not a lead or mentor of project/.test(message)) return "notMerger";
   return "mergeRefused";
 }

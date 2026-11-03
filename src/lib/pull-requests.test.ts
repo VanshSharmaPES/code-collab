@@ -168,6 +168,7 @@ test("every message the procedure can raise is shown as a failure with its own f
     ["merge_pull_request: pull request 5 has no approving review", "noApproval"],
     ["merge_pull_request: pull request 5 has an unresolved change request", "changesRequested"],
     ["merge_pull_request: project 3 is archived, merging is disabled", "projectInactive"],
+    ["merge_pull_request: pull request 5 belongs to a GitHub mirror and cannot be merged here", "mirrored"],
     ["merge_pull_request: user 9 is not a lead or mentor of project 3", "notMerger"],
     ["merge_pull_request: simulated failure after all writes (demo)", "mergeRefused"],
     ["merge_pull_request: something new we have not seen", "mergeRefused"],
