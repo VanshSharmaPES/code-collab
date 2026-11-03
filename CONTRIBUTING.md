@@ -59,3 +59,8 @@
   - Options: `--repo=owner/name` (monthly, files), `--since=YYYY-MM-DD` (included), `--until=YYYY-MM-DD` (not included).
 - Conventions: a month is a UTC calendar month (a commit at 23:30 UTC on 31 January counts for January). Documents with a missing or non-date timestamp, or without a repo or sha, are left out. Duplicates are counted once: by `(repo, sha)` for commits and by the outbox id for events, in addition to the unique indexes of P2-09.
 - The pipeline builders are in `src/lib/mongo-analytics.ts`. `npm test` checks their shape without a server. To check them against a real MongoDB too, start a local one and run `TEST_MONGO_URL=mongodb://127.0.0.1:27017 npm test`; the test uses its own temporary databases (`cc_analytics_test_*`) and drops only those.
+
+## Comment threads (P2-12)
+
+- Comments are stored as flat MongoDB documents. Replies reference their parent through `parentId`; the UI renders the reply hierarchy. Reply nesting is capped at a maximum depth of 5.
+- Reading and writing comments requires authentication and project-participant access, following the same access rules as issue and pull-request pages.
