@@ -24,12 +24,12 @@ ORDER BY g.bucket;
 -- Q4b: summary statistics for the same scores. percentile_cont() interpolates, so the
 -- median and quartiles are exact even with an even number of members.
 SELECT count(*)                                                       AS members,
-       min(score)                                                     AS min,
+       min(score)::numeric(10,1)                                      AS min,
        percentile_cont(0.25) WITHIN GROUP (ORDER BY score)::numeric(10,1) AS p25,
        percentile_cont(0.50) WITHIN GROUP (ORDER BY score)::numeric(10,1) AS median,
        percentile_cont(0.75) WITHIN GROUP (ORDER BY score)::numeric(10,1) AS p75,
        percentile_cont(0.90) WITHIN GROUP (ORDER BY score)::numeric(10,1) AS p90,
-       max(score)                                                     AS max,
+       max(score)::numeric(10,1)                                      AS max,
        round(avg(score), 1)                                           AS mean,
        round(stddev_pop(score), 1)                                    AS stddev
 FROM member_contribution_v;
