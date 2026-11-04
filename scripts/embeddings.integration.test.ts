@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { Client } from "pg";
 import { DIMENSIONS, MODEL_NAME, type Embedder } from "../src/lib/embedding-model";
-import { KEYWORD_SEARCH_SQL, SEMANTIC_SEARCH_SQL, searchKeyword, searchSemantic, type SearchHit } from "../src/lib/search";
+import { KEYWORD_SEARCH_SQL, SEMANTIC_SEARCH_SQL, SEARCH_LIMIT, searchKeyword, searchSemantic, type SearchHit, type SemanticTx } from "../src/lib/search";
 import { PENDING_SQL, countPending, embedKind } from "./embed-data";
 
 const adminUrl = process.env.TEST_PG_ADMIN_URL;
@@ -99,8 +99,13 @@ describe("embeddings against a real PostgreSQL with pgvector", { skip: adminUrl 
     for (const sql of Object.values(PENDING_SQL)) await db.query(sql, [MODEL_NAME, "0", 1]); // the pending queries are valid SQL
   });
 
+  // The same BEGIN / COMMIT the application uses, on the test's single connection.
+  const tx: SemanticTx = async (fn) => {
+    await db.query("BEGIN");
+    try { const out = await fn(rows); await db.query("COMMIT"); return out; } catch (err) { await db.query("ROLLBACK"); throw err; }
+  };
   const VIEWER = "1"; // the mentor of project p, which holds every row below
-  const semantic = async (q: string, viewer = VIEWER): Promise<SearchHit[]> => searchSemantic((await fakeEmbedder([q]))[0], viewer, rows);
+  const semantic = async (q: string, viewer = VIEWER): Promise<SearchHit[]> => searchSemantic((await fakeEmbedder([q]))[0], viewer, tx);
 
   it("semantic search returns the nearest rows across all three kinds, joined to their real titles", async () => {
     const hits = await semantic("login crash missing cookie");
@@ -189,7 +194,7 @@ describe("embeddings against a real PostgreSQL with pgvector", { skip: adminUrl 
     const { embedTexts } = await import("../src/lib/embedder");
     await db.query("delete from embeddings");
     for (const kind of ["issue", "pull_request", "commit"] as const) await embedKind(db, kind, embedTexts, { limit: 100 });
-    const hits = await searchSemantic((await embedTexts(["the application errors out when someone signs in without a cookie"]))[0], VIEWER, rows);
+    const hits = await searchSemantic((await embedTexts(["the application errors out when someone signs in without a cookie"]))[0], VIEWER, tx);
     assert.equal(hits[0].title, "Login crashes when the session cookie is missing"); // no word in common except "cookie"
   });
 
@@ -204,5 +209,29 @@ describe("embeddings against a real PostgreSQL with pgvector", { skip: adminUrl 
       .map((r) => r["QUERY PLAN"]).join("\n");
     assert.match(plan, /Index Scan using idx_embeddings_hnsw/);
     assert.equal((await rows(SEMANTIC_SEARCH_SQL, [vector, MODEL_NAME, 10, VIEWER])).length, 0, "random filler rows have no matching issue, so they are dropped");
+  });
+
+  it("a viewer who owns a small share of a large table still gets the full number of results", async () => {
+    // The HNSW index hands back about 40 candidates from every project and the access check then filters them, so without
+    // iterative scans a viewer with 12 of 5,000+ embeddings would get a handful. Project p (viewer 1) gets 12 rows, project "big" 5,000.
+    await db.query("delete from embeddings");
+    await db.query("INSERT INTO projects (name, mentor_id) VALUES ('big', 2)");
+    await db.query("INSERT INTO repositories (project_id, name) VALUES ((SELECT id FROM projects WHERE name = 'big'), 'repo-big')");
+    await db.query("INSERT INTO issues (repository_id, number, title) SELECT (SELECT id FROM repositories WHERE name = 'repo-big'), g, 'big ' || g FROM generate_series(1, 5000) g");
+    await db.query("INSERT INTO issues (repository_id, number, title) SELECT (SELECT id FROM repositories WHERE name = 'repo-a'), 100 + g, 'small ' || g FROM generate_series(1, 12) g");
+    await db.query(`insert into embeddings (entity_type, entity_id, model, content_hash, embedding)
+      select 'issue', i.id, $1::text, 'h', (select array_agg(random() - 0.5) from generate_series(1, 384) where i.id is not null)::vector
+      from issues i where i.title like 'big %' or i.title like 'small %'`, [MODEL_NAME]);
+    await db.query("analyze embeddings");
+    const vector = Array.from({ length: DIMENSIONS }, (_, i) => ((i * 7) % 11) / 10 - 0.5);
+    for (const viewer of ["1", "2"]) {
+      const hits = await searchSemantic(vector, viewer, tx);
+      assert.equal(hits.length, SEARCH_LIMIT, `viewer ${viewer} gets ${SEARCH_LIMIT} results`);
+      assert.ok(hits.every((h) => (viewer === "1" ? h.repository_name === "repo-a" : h.repository_name === "repo-big")), `viewer ${viewer} sees only their own project`);
+    }
+    await db.query("delete from embeddings");
+    await db.query("delete from issues where title like 'big %' or title like 'small %'");
+    await db.query("delete from repositories where name = 'repo-big'");
+    await db.query("delete from projects where name = 'big'");
   });
 });

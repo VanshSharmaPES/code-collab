@@ -1,5 +1,5 @@
 import "server-only";
-import { query } from "@/lib/db";
+import { query, withTransaction } from "@/lib/db";
 import { MODEL_NAME, toVectorLiteral } from "@/lib/embedding-model";
 import { participantSql } from "@/lib/project-access";
 
@@ -36,13 +36,14 @@ export const KEYWORD_SEARCH_SQL =
   `FROM commits c JOIN repositories r ON r.id = c.repository_id, q, LATERAL (SELECT to_tsvector('english', c.message) AS doc) v WHERE v.doc @@ q.tsq AND ${participantSql("$3", "r.project_id")}` +
   ") hits ORDER BY score DESC, kind, id::bigint LIMIT $2";
 
-// Semantic search: the nearest stored vectors by cosine distance, joined back to the real row. $1 the query vector as
-// text, $2 the model, $3 the number of results, $4 the viewer. The viewer's project check sits inside the nearest-vector
-// query, before its LIMIT: filtering the ten nearest afterwards would show nothing whenever the nearest rows belong to
-// other projects. The cost is that the planner scans the viewer's embeddings in order rather than walking the HNSW
-// index (it cannot filter inside the index); that is fine for thousands of rows per viewer, and a larger table would
-// need pgvector's iterative index scans. An embedding whose row no longer exists is dropped. score is the cosine
-// similarity, 1 for the same direction.
+// Semantic search: the nearest stored vectors by cosine distance (the HNSW index), joined back to the real row. $1 the
+// query vector as text, $2 the model, $3 the number of results, $4 the viewer. The viewer's project check is part of the
+// nearest-vector query, before its LIMIT. The HNSW index cannot apply it inside the index: it returns about 40 candidates
+// (hnsw.ef_search) from every project and the check then filters them, so a viewer with a small share of the data would
+// get a short, varying list. searchSemantic therefore runs this query with iterative index scans (pgvector 0.8 or
+// later): the index keeps going until the LIMIT is filled with rows the viewer may see, and the order stays exact. A
+// viewer with a very small share may also need hnsw.max_scan_tuples (default 20,000). An embedding whose row no longer
+// exists is dropped. score is the cosine similarity, 1 for the same direction.
 export const SEMANTIC_SEARCH_SQL =
   "WITH nn AS (SELECT e.entity_type, e.entity_id, e.embedding <=> $1::vector AS distance FROM embeddings e WHERE e.model = $2::text AND (" +
   `(e.entity_type = 'issue' AND EXISTS (SELECT 1 FROM issues vi JOIN repositories vr ON vr.id = vi.repository_id WHERE vi.id = e.entity_id AND ${participantSql("$4", "vr.project_id")})) OR ` +
@@ -61,6 +62,15 @@ export async function searchKeyword(text: string, viewerId: string, run: RunQuer
   return run(KEYWORD_SEARCH_SQL, [text, SEARCH_LIMIT, viewerId]);
 }
 
-export async function searchSemantic(vector: readonly number[], viewerId: string, run: RunQuery<SearchHit> = query<SearchHit>): Promise<SearchHit[]> {
-  return run(SEMANTIC_SEARCH_SQL, [toVectorLiteral(vector), MODEL_NAME, SEARCH_LIMIT, viewerId]);
+// Runs the given steps on one connection inside a transaction, so that SET LOCAL applies to them only.
+export type SemanticTx = <T>(fn: (run: RunQuery<SearchHit>) => Promise<T>) => Promise<T>;
+const databaseTx: SemanticTx = (fn) => withTransaction((q) => fn((text, params) => q<SearchHit>(text, params)));
+export const ITERATIVE_SCAN_SQL = "SET LOCAL hnsw.iterative_scan = 'strict_order'";
+
+export async function searchSemantic(vector: readonly number[], viewerId: string, tx: SemanticTx = databaseTx): Promise<SearchHit[]> {
+  const params = [toVectorLiteral(vector), MODEL_NAME, SEARCH_LIMIT, viewerId]; // validates the vector before the database is touched
+  return tx(async (run) => {
+    await run(ITERATIVE_SCAN_SQL, []);
+    return run(SEMANTIC_SEARCH_SQL, params);
+  });
 }
