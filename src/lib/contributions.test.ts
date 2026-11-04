@@ -4,7 +4,7 @@ import * as contributions from "./contributions";
 import { managerSql, participantSql } from "./project-access";
 import {
   COMMIT_EVIDENCE_SQL, EVIDENCE_LIMIT, ISSUE_EVIDENCE_SQL, MEMBER_CONTRIBUTIONS_SQL, LIST_PROJECTS_SQL, PULL_REQUEST_EVIDENCE_SQL, REVIEW_EVIDENCE_SQL,
-  commitUrl, getMemberEvidence, listMemberContributions, listProjects,
+  commitUrl, getMemberEvidence, listMemberContributions, listProjects, pickProject,
 } from "./contributions";
 
 // The shape of a row from MEMBER_CONTRIBUTIONS_SQL: counts from contribution_counts(), score from score_from_counts().
@@ -144,4 +144,17 @@ test("the viewer is a required argument of every contribution read, so a caller 
   await listProjects("5", run);
   assert.equal(n, 3);
   assert.equal(listMemberContributions.length >= 2 && getMemberEvidence.length >= 3 && listProjects.length >= 1, true);
+});
+
+test("pickProject: no ?project= shows the first project, a request must match one of the viewer's projects or it is not found", () => {
+  const projects = [{ id: "7", name: "A" }, { id: "9", name: "B" }];
+  const parse = (v: string) => (/^[1-9]\d*$/.test(v) ? v : null);
+  assert.deepEqual(pickProject(projects, undefined, parse), projects[0]);
+  assert.equal(pickProject([], undefined, parse), null);
+  assert.deepEqual(pickProject(projects, "9", parse), projects[1]);
+  assert.equal(pickProject(projects, "8", parse), "notFound", "a project the viewer cannot see");
+  assert.equal(pickProject(projects, "abc", parse), "notFound", "malformed id");
+  assert.equal(pickProject(projects, "", parse), "notFound", "empty value");
+  assert.equal(pickProject(projects, ["7", "9"], parse), "notFound", "repeated parameter");
+  assert.equal(pickProject([], "7", parse), "notFound", "viewer has no projects");
 });

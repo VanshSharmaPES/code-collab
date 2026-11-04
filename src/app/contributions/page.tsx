@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { parseId } from "@/lib/issue-input";
-import { listMemberContributions, listProjects, type MemberContribution, type ProjectOption } from "@/lib/contributions";
+import { listMemberContributions, listProjects, pickProject, type MemberContribution, type ProjectOption } from "@/lib/contributions";
 
 export const metadata: Metadata = { title: "Contributions | CodeCollab" };
 
@@ -11,16 +12,21 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function ContributionsPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await requireSession();
   const sp = await searchParams;
-  const requested = typeof sp.project === "string" ? parseId(sp.project) : null;
 
+  let notFound404 = false;
   let data: { projects: ProjectOption[]; project: ProjectOption | null; members: MemberContribution[] } | null = null;
   try {
     const projects = await listProjects(session.userId);
-    const project = projects.find((p) => p.id === requested) ?? projects[0] ?? null;
+    const picked = pickProject(projects, sp.project, parseId);
+    // notFound() works by throwing, so it must not be called inside this try.
+    if (picked === "notFound") notFound404 = true;
+    const project = picked === "notFound" ? null : picked;
     data = { projects, project, members: project ? await listMemberContributions(project.id, session.userId) : [] };
   } catch (err) {
     console.error("Contributions page: could not load contributions:", err instanceof Error ? err.message : err);
   }
+
+  if (notFound404) notFound();
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">

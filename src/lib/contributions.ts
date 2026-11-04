@@ -9,7 +9,8 @@ export const EVIDENCE_LIMIT = 50;
 
 // The counting rules and the weights live in the database (db/schema/05_contribution_score.sql, P1-12):
 // contribution_counts() and score_from_counts(). The query below calls them, so this page shows the same numbers as
-// the SQL function and nothing is scored in TypeScript.
+// the SQL function and nothing is scored in TypeScript. Those functions come from db/schema/05_contribution_score.sql,
+// which must be applied before this page works.
 export type ContributionCounts = { commits: number; prs_opened: number; prs_merged: number; reviews_given: number; issues_closed: number };
 
 // A link to the commit on GitHub, only for a plain https://github.com/<owner>/<repo> repository address.
@@ -97,7 +98,16 @@ export async function listProjects(viewerId: string, run: RunQuery<ProjectOption
   return run(LIST_PROJECTS_SQL, [viewerId]);
 }
 
-// Highest score first; ties by name.
+// Which project the page shows. No ?project= at all: the first one the viewer can see (null when they see none).
+// A ?project= that is malformed or not one of the viewer's projects is "not found", the same answer for a project that
+// does not exist and one the viewer may not see, so the page does not reveal which projects exist.
+export function pickProject(projects: ProjectOption[], requested: string | string[] | undefined, parse: (v: string) => string | null): ProjectOption | null | "notFound" {
+  if (requested === undefined) return projects[0] ?? null;
+  const id = typeof requested === "string" ? parse(requested) : null;
+  return projects.find((p) => p.id === id) ?? "notFound";
+}
+
+// The SQL orders by name only so the result is stable; this sorts by score, highest first, ties by name.
 export async function listMemberContributions(projectId: string, viewerId: string, run: RunQuery<MemberRow> = query<MemberRow>): Promise<MemberContribution[]> {
   const rows = (await run(MEMBER_CONTRIBUTIONS_SQL, [projectId, null, viewerId])).map(toMember);
   return rows.sort((a, b) => b.score - a.score || a.full_name.localeCompare(b.full_name));
