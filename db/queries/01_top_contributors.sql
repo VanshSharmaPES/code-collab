@@ -1,4 +1,5 @@
 -- Q1: top three contributors per project, ranked by contribution score.
+-- Keep in step with src/lib/dashboard.ts: the dashboard runs this query with a manager filter added.
 -- Window functions: RANK() orders members inside each project, SUM() OVER gives the
 -- project total so each person's share can be shown. Ties share a rank.
 SELECT project_id,
