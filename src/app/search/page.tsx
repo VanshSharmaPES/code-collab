@@ -42,7 +42,7 @@ function Results({ title, note, hits, failed, scoreLabel }: { title: string; not
 }
 
 export default async function SearchPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireSession();
+  const session = await requireSession();
   const sp = await searchParams;
   const raw = typeof sp.q === "string" ? sp.q : "";
   const text = parseSearchQuery(raw);
@@ -52,8 +52,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   if (text !== null) {
     // The two searches are independent: if one cannot run, the other is still shown.
     const [k, s] = await Promise.allSettled([
-      searchKeyword(text),
-      embedTexts([text]).then(([vector]) => searchSemantic(vector)),
+      searchKeyword(text, session.userId),
+      embedTexts([text]).then(([vector]) => searchSemantic(vector, session.userId)),
     ]);
     keyword = k.status === "fulfilled" ? k.value : null;
     semantic = s.status === "fulfilled" ? s.value : null;

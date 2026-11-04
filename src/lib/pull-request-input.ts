@@ -29,6 +29,7 @@ export function availableActions(status: PullRequestStatus): PullRequestAction[]
 // Messages for a failed status change, picked by a fixed code in the redirect URL (never free text).
 export const ACTION_ERRORS = {
   mirrored: "GitHub-mirrored pull requests are read-only.",
+  forbidden: "Only the author, a team lead or the mentor can close or reopen this pull request.",
   status: "That action is not available for this pull request's current status.",
   failed: "The pull request could not be updated right now. Please try again.",
   selfApproval: "You can't approve your own pull request.",
@@ -64,6 +65,7 @@ export function mergeErrorCode(message: string): ActionErrorCode | null {
   if (/has no approving review/.test(message)) return "noApproval";
   if (/has an unresolved change request/.test(message)) return "changesRequested";
   if (/merging is disabled/.test(message)) return "projectInactive";
+  if (/belongs to a GitHub mirror/.test(message)) return "mirrored";
   if (/is not a lead or mentor of project/.test(message)) return "notMerger";
   return "mergeRefused";
 }

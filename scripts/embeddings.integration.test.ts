@@ -47,8 +47,10 @@ describe("embeddings against a real PostgreSQL with pgvector", { skip: adminUrl 
     db = new Client({ connectionString: u.toString() });
     await db.connect();
     for (const f of ["01_core.sql", "02_rest.sql", "08_embeddings.sql"]) await apply(f);
+    // Users 1 and 2 are the mentors of two projects; user 3 is on no project.
+    for (let i = 1; i <= 3; i++) await db.query("INSERT INTO users (email, full_name, password_hash, role) VALUES ($1, $2, 'x', $3)", [`u${i}@t.test`, `User ${i}`, i < 3 ? "mentor" : "student"]);
     await db.query(`
-      INSERT INTO projects (name) VALUES ('p');
+      INSERT INTO projects (name, mentor_id) VALUES ('p', 1);
       INSERT INTO repositories (project_id, name) VALUES (1, 'repo-a');
       INSERT INTO issues (repository_id, number, title, body) VALUES
         (1, 1, 'Login crashes when the session cookie is missing', 'The app throws an error on sign in'),
@@ -97,7 +99,8 @@ describe("embeddings against a real PostgreSQL with pgvector", { skip: adminUrl 
     for (const sql of Object.values(PENDING_SQL)) await db.query(sql, [MODEL_NAME, "0", 1]); // the pending queries are valid SQL
   });
 
-  const semantic = async (q: string): Promise<SearchHit[]> => searchSemantic((await fakeEmbedder([q]))[0], rows);
+  const VIEWER = "1"; // the mentor of project p, which holds every row below
+  const semantic = async (q: string, viewer = VIEWER): Promise<SearchHit[]> => searchSemantic((await fakeEmbedder([q]))[0], viewer, rows);
 
   it("semantic search returns the nearest rows across all three kinds, joined to their real titles", async () => {
     const hits = await semantic("login crash missing cookie");
@@ -122,6 +125,32 @@ describe("embeddings against a real PostgreSQL with pgvector", { skip: adminUrl 
     assert.equal(hits.length, 6);
   });
 
+  it("search never shows another project's rows, with either search, even when they are the nearest matches", async () => {
+    await db.query("INSERT INTO projects (name, mentor_id) VALUES ('other', 2)");
+    await db.query("INSERT INTO repositories (project_id, name) VALUES (2, 'repo-b')");
+    await db.query(`INSERT INTO issues (repository_id, number, title, body) VALUES ((SELECT id FROM repositories WHERE name = 'repo-b'), 1, 'Login crashes when the session cookie is missing in the other project', 'secret cookie crash')`);
+    await db.query(`INSERT INTO commits (repository_id, sha, message, committed_at) VALUES ((SELECT id FROM repositories WHERE name = 'repo-b'), 'ccccccc', 'Fix login cookie crash in the other project', now())`);
+    for (const kind of ["issue", "commit"] as const) await embedKind(db, kind, fakeEmbedder, { limit: 100 });
+    const other = (h: SearchHit) => h.repository_name === "repo-b";
+    for (const [viewer, sees] of [["1", false], ["2", true]] as const) {
+      const sem = await semantic("login crash missing cookie", viewer);
+      const kw = await searchKeyword("cookie crash", viewer, rows);
+      assert.equal(sem.some(other), sees, `semantic, viewer ${viewer}`);
+      assert.equal(kw.some(other), sees, `keyword, viewer ${viewer}`);
+      assert.equal(sem.every(other) || !sees, true, `viewer ${viewer} sees only their own project`);
+      if (!sees) assert.ok(sem.length > 0 && kw.length > 0, "the viewer's own rows are still found");
+    }
+    assert.deepEqual(await semantic("login crash missing cookie", "3"), [], "a user on no project finds nothing (semantic)");
+    assert.deepEqual(await searchKeyword("cookie crash", "3", rows), [], "a user on no project finds nothing (keyword)");
+    // Restore the fixture for the tests that follow.
+    await db.query("delete from embeddings where entity_id in (select id from issues where repository_id = (select id from repositories where name = 'repo-b')) and entity_type = 'issue'");
+    await db.query("delete from embeddings where entity_id in (select id from commits where repository_id = (select id from repositories where name = 'repo-b')) and entity_type = 'commit'");
+    await db.query("delete from issues where repository_id = (select id from repositories where name = 'repo-b')");
+    await db.query("delete from commits where repository_id = (select id from repositories where name = 'repo-b')");
+    await db.query("delete from repositories where name = 'repo-b'");
+    await db.query("delete from projects where name = 'other'");
+  });
+
   it("an edit that changes the text is embedded again; an edit that does not change it keeps the vector", async () => {
     const hash = async () => (await rows<{ content_hash: string; created_at: Date }>("select content_hash, created_at from embeddings where entity_type = 'issue' and entity_id = (select id from issues where number = 3)", []))[0];
     const before = await hash();
@@ -139,12 +168,12 @@ describe("embeddings against a real PostgreSQL with pgvector", { skip: adminUrl 
   });
 
   it("keyword search finds rows by their words and survives hostile or malformed text", async () => {
-    const hits = await searchKeyword("cookie crash", rows);
+    const hits = await searchKeyword("cookie crash", VIEWER, rows);
     assert.deepEqual(hits.map((h) => h.kind).sort(), ["issue", "pull_request"]);
     assert.ok(hits[0].score > 0);
-    assert.deepEqual((await searchKeyword("dark theme", rows)).map((h) => h.kind).sort(), ["commit"]);
+    assert.deepEqual((await searchKeyword("dark theme", VIEWER, rows)).map((h) => h.kind).sort(), ["commit"]);
     for (const hostile of ["'; DROP TABLE issues; --", '"unbalanced quote', "a & | ! ( ) :*", "\\", "-- /* */", "OR OR AND NOT", "x".repeat(200)]) {
-      await assert.doesNotReject(searchKeyword(hostile, rows), hostile);
+      await assert.doesNotReject(searchKeyword(hostile, VIEWER, rows), hostile);
     }
     assert.equal((await rows<{ n: number }>("select count(*)::int n from issues", []))[0].n, 2); // the table is still there
     assert.ok(KEYWORD_SEARCH_SQL.length > 0 && SEMANTIC_SEARCH_SQL.length > 0);
@@ -160,7 +189,7 @@ describe("embeddings against a real PostgreSQL with pgvector", { skip: adminUrl 
     const { embedTexts } = await import("../src/lib/embedder");
     await db.query("delete from embeddings");
     for (const kind of ["issue", "pull_request", "commit"] as const) await embedKind(db, kind, embedTexts, { limit: 100 });
-    const hits = await searchSemantic((await embedTexts(["the application errors out when someone signs in without a cookie"]))[0], rows);
+    const hits = await searchSemantic((await embedTexts(["the application errors out when someone signs in without a cookie"]))[0], VIEWER, rows);
     assert.equal(hits[0].title, "Login crashes when the session cookie is missing"); // no word in common except "cookie"
   });
 
@@ -174,6 +203,6 @@ describe("embeddings against a real PostgreSQL with pgvector", { skip: adminUrl 
     const plan = (await db.query("explain select e.entity_id from embeddings e where e.model = $1::text order by e.embedding <=> $2::vector limit 10", [MODEL_NAME, vector])).rows
       .map((r) => r["QUERY PLAN"]).join("\n");
     assert.match(plan, /Index Scan using idx_embeddings_hnsw/);
-    assert.equal((await rows(SEMANTIC_SEARCH_SQL, [vector, MODEL_NAME, 10])).length, 0, "random filler rows have no matching issue, so they are dropped");
+    assert.equal((await rows(SEMANTIC_SEARCH_SQL, [vector, MODEL_NAME, 10, VIEWER])).length, 0, "random filler rows have no matching issue, so they are dropped");
   });
 });

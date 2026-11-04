@@ -7,21 +7,22 @@ import { ACTION_ERRORS, PR_TRANSITIONS, availableActions } from "@/lib/pull-requ
 import { PR_MIRRORED_READ_ONLY_MESSAGE, canChangePullRequest, getPullRequest, type PullRequestRow } from "@/lib/pull-requests";
 import { formatDate, formatLabel } from "@/lib/format";
 import { transitionPullRequestAction } from "../actions";
+import { CommentThread, commentErrorMessage } from "../../comments/comment-thread";
 
 export const metadata: Metadata = { title: "Pull request | CodeCollab" };
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function PullRequestDetailPage({ params, searchParams }: Props) {
-  await requireSession();
+  const session = await requireSession();
   const id = parseId((await params).id);
   if (id === null) notFound();
-  const { error } = await searchParams;
+  const { error, commentError } = await searchParams;
   const errorMessage = typeof error === "string" && Object.hasOwn(ACTION_ERRORS, error) ? ACTION_ERRORS[error as keyof typeof ACTION_ERRORS] : null;
 
   let pr: PullRequestRow | null;
   try {
-    pr = await getPullRequest(id);
+    pr = await getPullRequest(id, session.userId);
   } catch (err) {
     console.error("Pull request page: could not load the pull request:", err instanceof Error ? err.message : err);
     return (
@@ -64,6 +65,7 @@ export default async function PullRequestDetailPage({ params, searchParams }: Pr
       <div className="mt-6 whitespace-pre-wrap break-words rounded border border-zinc-200 p-4 text-sm dark:border-zinc-800">
         {pr.description ?? <span className="text-zinc-500">No description.</span>}
       </div>
+      <CommentThread targetType="pull_request" targetId={pr.id} viewerId={session.userId} error={commentErrorMessage(commentError)} />
     </main>
   );
 }

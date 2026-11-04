@@ -15,25 +15,24 @@ export type EmbedDb = { query(text: string, params?: readonly unknown[]): Promis
 
 // $1 model, $2 last id handled (keyset paging), $3 batch size. "Pending" means no embedding for this model yet, or (for
 // rows that can change) edited after the embedding was computed. Commits never change, so only the first applies.
-const pendingSql = (select: string, from: string, alias: string, kind: Kind, changes: boolean) =>
-  `SELECT ${alias}.id::text AS id, ${select}, e.content_hash AS stored_hash FROM ${from} ` +
-  `LEFT JOIN embeddings e ON e.entity_type = '${kind}' AND e.entity_id = ${alias}.id AND e.model = $1 ` +
-  `WHERE ${alias}.id > $2::bigint AND (e.id IS NULL${changes ? ` OR ${alias}.updated_at > e.created_at` : ""}) ORDER BY ${alias}.id LIMIT $3`;
-
+// Written out in full for each kind: no SQL is assembled from variables, which the injection scan in
+// src/lib/security.test.ts would refuse.
 export const PENDING_SQL: Record<Kind, string> = {
-  issue: pendingSql("i.title AS first, i.body AS second", "issues i", "i", "issue", true),
-  commit: pendingSql("c.message AS first, NULL::text AS second", "commits c", "c", "commit", false),
-  pull_request: pendingSql("p.title AS first, p.description AS second", "pull_requests p", "p", "pull_request", true),
+  issue:
+    "SELECT i.id::text AS id, i.title AS first, i.body AS second, e.content_hash AS stored_hash FROM issues i LEFT JOIN embeddings e ON e.entity_type = 'issue' AND e.entity_id = i.id AND e.model = $1 WHERE i.id > $2::bigint AND (e.id IS NULL OR i.updated_at > e.created_at) ORDER BY i.id LIMIT $3",
+  commit:
+    "SELECT c.id::text AS id, c.message AS first, NULL::text AS second, e.content_hash AS stored_hash FROM commits c LEFT JOIN embeddings e ON e.entity_type = 'commit' AND e.entity_id = c.id AND e.model = $1 WHERE c.id > $2::bigint AND (e.id IS NULL) ORDER BY c.id LIMIT $3",
+  pull_request:
+    "SELECT p.id::text AS id, p.title AS first, p.description AS second, e.content_hash AS stored_hash FROM pull_requests p LEFT JOIN embeddings e ON e.entity_type = 'pull_request' AND e.entity_id = p.id AND e.model = $1 WHERE p.id > $2::bigint AND (e.id IS NULL OR p.updated_at > e.created_at) ORDER BY p.id LIMIT $3",
 };
 
-const countSql = (from: string, alias: string, kind: Kind, changes: boolean) =>
-  `SELECT count(*)::int AS n FROM ${from} LEFT JOIN embeddings e ON e.entity_type = '${kind}' AND e.entity_id = ${alias}.id AND e.model = $1 ` +
-  `WHERE e.id IS NULL${changes ? ` OR ${alias}.updated_at > e.created_at` : ""}`;
-
 export const COUNT_PENDING_SQL: Record<Kind, string> = {
-  issue: countSql("issues i", "i", "issue", true),
-  commit: countSql("commits c", "c", "commit", false),
-  pull_request: countSql("pull_requests p", "p", "pull_request", true),
+  issue:
+    "SELECT count(*)::int AS n FROM issues i LEFT JOIN embeddings e ON e.entity_type = 'issue' AND e.entity_id = i.id AND e.model = $1 WHERE e.id IS NULL OR i.updated_at > e.created_at",
+  commit:
+    "SELECT count(*)::int AS n FROM commits c LEFT JOIN embeddings e ON e.entity_type = 'commit' AND e.entity_id = c.id AND e.model = $1 WHERE e.id IS NULL",
+  pull_request:
+    "SELECT count(*)::int AS n FROM pull_requests p LEFT JOIN embeddings e ON e.entity_type = 'pull_request' AND e.entity_id = p.id AND e.model = $1 WHERE e.id IS NULL OR p.updated_at > e.created_at",
 };
 
 // $1 type, $2 id, $3 model, $4 hash, $5 vector text. The unique key makes a rerun update the row instead of adding one.

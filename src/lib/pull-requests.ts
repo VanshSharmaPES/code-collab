@@ -4,6 +4,7 @@ import {
   MERGE_ERROR_PREFIX, PR_TRANSITIONS, approveErrorCode, mergeErrorCode,
   type ActionErrorCode, type PullRequestAction, type PullRequestStatus,
 } from "@/lib/pull-request-input";
+import { managerSql, participantSql } from "@/lib/project-access";
 
 export { PAGE_SIZE, listRepositories, type RepositoryOption } from "@/lib/issues";
 
@@ -18,13 +19,17 @@ const PR_FROM =
   "FROM pull_requests pr JOIN repositories r ON r.id = pr.repository_id JOIN projects p ON p.id = r.project_id " +
   "LEFT JOIN users a ON a.id = pr.author_id LEFT JOIN users m ON m.id = pr.merged_by";
 
-// Optional filters are bound parameters: a NULL means "no filter".
-const PR_WHERE = "WHERE ($1::bigint IS NULL OR pr.repository_id = $1::bigint) AND ($2::text IS NULL OR pr.status = $2::text)";
-export const LIST_PULL_REQUESTS_SQL = `SELECT ${PR_COLUMNS} ${PR_FROM} ${PR_WHERE} ORDER BY pr.updated_at DESC, pr.id DESC LIMIT $3 OFFSET $4`;
-export const COUNT_PULL_REQUESTS_SQL = `SELECT count(*)::int AS n FROM pull_requests pr ${PR_WHERE}`;
-export const GET_PULL_REQUEST_SQL = `SELECT ${PR_COLUMNS} ${PR_FROM} WHERE pr.id = $1::bigint`;
+// Optional filters are bound parameters: a NULL means "no filter". Only pull requests of projects the viewer takes part
+// in are ever returned (see project-access.ts). List: $5 is the viewer; count: $3; detail: $2.
+const prWhere = (viewer: string) =>
+  `WHERE ($1::bigint IS NULL OR pr.repository_id = $1::bigint) AND ($2::text IS NULL OR pr.status = $2::text) AND ${participantSql(viewer, "r.project_id")}`;
+export const LIST_PULL_REQUESTS_SQL = `SELECT ${PR_COLUMNS} ${PR_FROM} ${prWhere("$5")} ORDER BY pr.updated_at DESC, pr.id DESC LIMIT $3 OFFSET $4`;
+export const COUNT_PULL_REQUESTS_SQL = `SELECT count(*)::int AS n FROM pull_requests pr JOIN repositories r ON r.id = pr.repository_id ${prWhere("$3")}`;
+export const GET_PULL_REQUEST_SQL = `SELECT ${PR_COLUMNS} ${PR_FROM} WHERE pr.id = $1::bigint AND ${participantSql("$2", "r.project_id")}`;
 
-// Close and reopen only. $1 id, $2 new status, $3 statuses the pull request may currently be in, $4 actor.
+// Close and reopen only. $1 id, $2 new status, $3 statuses the pull request may currently be in, $4 actor (the signed-in user).
+// The change is made only if the actor is a manager of the project (mentor or team lead) or the author of the pull request.
+// A pull request of a project the actor takes no part in looks like a missing one: status stays NULL.
 // set_config(..., true) records the actor for this transaction only, in the same statement. Approve and merge do NOT
 // use this statement: approving writes a review and merging calls merge_pull_request, so the database's own rules
 // apply. The status can only become open or closed here, whatever is passed. Pull requests of a GitHub mirror
@@ -36,11 +41,13 @@ export const TRANSITION_PULL_REQUEST_SQL =
   "UPDATE pull_requests pr SET status = $2::text, updated_at = now() " +
   "FROM (SELECT set_config('codecollab.actor_id', $4::text, true)) AS actor " +
   "WHERE pr.id = $1::bigint AND $2::text IN ('open', 'closed') AND pr.status = ANY($3::text[]) " +
-  "AND EXISTS (SELECT 1 FROM repositories r WHERE r.id = pr.repository_id AND r.github_url IS NULL) " +
+  "AND EXISTS (SELECT 1 FROM repositories r WHERE r.id = pr.repository_id AND r.github_url IS NULL " +
+  `AND (${managerSql("$4", "r.project_id")} OR (pr.author_id = $4::bigint AND ${participantSql("$4", "r.project_id")}))) ` +
   "RETURNING pr.id) " +
   "SELECT (SELECT id::text FROM upd) AS id, " +
-  "(SELECT r.github_url IS NOT NULL FROM pull_requests x JOIN repositories r ON r.id = x.repository_id WHERE x.id = $1::bigint) AS mirrored, " +
-  "(SELECT x.status FROM pull_requests x WHERE x.id = $1::bigint) AS status";
+  `(SELECT r.github_url IS NOT NULL FROM pull_requests x JOIN repositories r ON r.id = x.repository_id WHERE x.id = $1::bigint AND ${participantSql("$4", "r.project_id")}) AS mirrored, ` +
+  `(SELECT x.status FROM pull_requests x JOIN repositories r ON r.id = x.repository_id WHERE x.id = $1::bigint AND ${participantSql("$4", "r.project_id")}) AS status, ` +
+  `(SELECT (${managerSql("$4", "r.project_id")} OR x.author_id = $4::bigint) FROM pull_requests x JOIN repositories r ON r.id = x.repository_id WHERE x.id = $1::bigint AND ${participantSql("$4", "r.project_id")}) AS permitted`;
 
 // Approve: $1 pull request id, $2 reviewer (the signed-in user). It inserts a real review, so the self-review trigger
 // (P1-10) and UNIQUE (pull_request_id, reviewer_id) apply, and only then moves an open pull request to approved. The
@@ -51,7 +58,7 @@ export const APPROVE_PULL_REQUEST_SQL =
   "WITH rev AS (" +
   "INSERT INTO pr_reviews (pull_request_id, reviewer_id, verdict) " +
   "SELECT pr.id, $2::bigint, 'approved' FROM pull_requests pr JOIN repositories r ON r.id = pr.repository_id " +
-  "WHERE pr.id = $1::bigint AND pr.status IN ('open', 'approved') AND r.github_url IS NULL " +
+  `WHERE pr.id = $1::bigint AND pr.status IN ('open', 'approved') AND r.github_url IS NULL AND ${participantSql("$2", "r.project_id")} ` +
   "RETURNING pull_request_id), " +
   "upd AS (" +
   "UPDATE pull_requests pr SET status = 'approved', updated_at = now() " +
@@ -63,10 +70,11 @@ export const APPROVE_PULL_REQUEST_SQL =
 // linked issues, audit rows, metrics, one transaction). The application only calls it, for non-mirrored pull requests.
 export const MERGE_PULL_REQUEST_SQL = "CALL merge_pull_request($1::bigint, $2::bigint)";
 
-// Used before a call that has no result of its own, and to explain why an approval did nothing.
+// Used before a call that has no result of its own, and to explain why an approval did nothing. $2 is the viewer: a pull
+// request of a project the viewer takes no part in is reported as missing.
 export const PULL_REQUEST_STATE_SQL =
   "SELECT NULL::text AS id, (r.github_url IS NOT NULL) AS mirrored, pr.status AS status " +
-  "FROM pull_requests pr JOIN repositories r ON r.id = pr.repository_id WHERE pr.id = $1::bigint";
+  `FROM pull_requests pr JOIN repositories r ON r.id = pr.repository_id WHERE pr.id = $1::bigint AND ${participantSql("$2", "r.project_id")}`;
 
 export type PullRequestRow = {
   id: string;
@@ -91,17 +99,19 @@ export async function listPullRequests(
   filters: PullRequestFilters,
   page: number,
   pageSize: number,
+  viewerId: string,
   run: RunQuery<PullRequestRow> = query<PullRequestRow>,
 ): Promise<PullRequestRow[]> {
-  return run(LIST_PULL_REQUESTS_SQL, [filters.repositoryId, filters.status, pageSize, (page - 1) * pageSize]);
+  return run(LIST_PULL_REQUESTS_SQL, [filters.repositoryId, filters.status, pageSize, (page - 1) * pageSize, viewerId]);
 }
 
-export async function countPullRequests(filters: PullRequestFilters, run: RunQuery<{ n: number }> = query<{ n: number }>): Promise<number> {
-  return (await run(COUNT_PULL_REQUESTS_SQL, [filters.repositoryId, filters.status]))[0]?.n ?? 0;
+export async function countPullRequests(filters: PullRequestFilters, viewerId: string, run: RunQuery<{ n: number }> = query<{ n: number }>): Promise<number> {
+  return (await run(COUNT_PULL_REQUESTS_SQL, [filters.repositoryId, filters.status, viewerId]))[0]?.n ?? 0;
 }
 
-export async function getPullRequest(id: string, run: RunQuery<PullRequestRow> = query<PullRequestRow>): Promise<PullRequestRow | null> {
-  return (await run(GET_PULL_REQUEST_SQL, [id]))[0] ?? null;
+// Null when there is no such pull request or the viewer does not take part in its project (the page shows a 404 for both).
+export async function getPullRequest(id: string, viewerId: string, run: RunQuery<PullRequestRow> = query<PullRequestRow>): Promise<PullRequestRow | null> {
+  return (await run(GET_PULL_REQUEST_SQL, [id, viewerId]))[0] ?? null;
 }
 
 export const PR_MIRRORED_READ_ONLY_MESSAGE = "GitHub-mirrored pull requests are read-only.";
@@ -128,12 +138,12 @@ export function canChangePullRequest(pr: Pick<PullRequestRow, "is_mirrored">): b
   return !pr.is_mirrored;
 }
 
-type TransitionRow = { id?: string | null; mirrored?: boolean | null; status?: string | null; reviewed?: string | null; updated?: string | null };
+type TransitionRow = { id?: string | null; mirrored?: boolean | null; status?: string | null; permitted?: boolean | null; reviewed?: string | null; updated?: string | null };
 type Run = RunQuery<TransitionRow>;
 
 // Throws the reason a pull request could not be changed, from its current state: missing, GitHub mirror or wrong status.
-async function explain(id: string, run: Run): Promise<never> {
-  const state = (await run(PULL_REQUEST_STATE_SQL, [id]))[0];
+async function explain(id: string, viewerId: string, run: Run): Promise<never> {
+  const state = (await run(PULL_REQUEST_STATE_SQL, [id, viewerId]))[0];
   if (state?.status == null) throw new PullRequestNotFoundError();
   if (state.mirrored === true) throw new PullRequestMirroredError();
   throw new PullRequestStatusError(state.status);
@@ -149,11 +159,11 @@ async function approvePullRequest(id: string, actorId: string, run: Run): Promis
     throw err;
   }
   if (row?.reviewed) return; // the review exists; the status is now approved (it already was, if `updated` is empty)
-  return explain(id, run); // no review was written: missing, mirrored, or not open/approved
+  return explain(id, actorId, run); // no review was written: missing, mirrored, or not open/approved
 }
 
 async function mergePullRequest(id: string, actorId: string, run: Run): Promise<void> {
-  const state = (await run(PULL_REQUEST_STATE_SQL, [id]))[0];
+  const state = (await run(PULL_REQUEST_STATE_SQL, [id, actorId]))[0];
   if (state?.status == null) throw new PullRequestNotFoundError();
   if (state.mirrored === true) throw new PullRequestMirroredError();
   try {
@@ -182,5 +192,6 @@ export async function transitionPullRequest(
   if (row?.id) return;
   if (row?.status == null) throw new PullRequestNotFoundError();
   if (row.mirrored === true) throw new PullRequestMirroredError();
+  if (row.permitted === false) throw new PullRequestRuleError("forbidden");
   throw new PullRequestStatusError(row.status);
 }

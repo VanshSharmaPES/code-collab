@@ -20,27 +20,40 @@ test("keyword search is PostgreSQL full-text search with the text as a bound par
   for (const part of ["FROM issues i", "FROM pull_requests p", "FROM commits c"]) assert.ok(KEYWORD_SEARCH_SQL.includes(part), part);
   assert.doesNotMatch(KEYWORD_SEARCH_SQL, /password|email|\$\{|SELECT \*/i);
   let seen: { text: string; params: readonly unknown[] } | null = null;
-  await searchKeyword("'; DROP TABLE issues; --", async (text, params) => { seen = { text, params }; return []; });
+  await searchKeyword("'; DROP TABLE issues; --", "42", async (text, params) => { seen = { text, params }; return []; });
   assert.equal(seen!.text, KEYWORD_SEARCH_SQL);
-  assert.deepEqual(seen!.params, ["'; DROP TABLE issues; --", SEARCH_LIMIT]);
+  assert.deepEqual(seen!.params, ["'; DROP TABLE issues; --", SEARCH_LIMIT, "42"]);
 });
 
 test("semantic search orders by cosine distance, filters by model and drops embeddings whose row is gone", async () => {
   assert.match(SEMANTIC_SEARCH_SQL, /e\.embedding <=> \$1::vector AS distance/);
-  assert.match(SEMANTIC_SEARCH_SQL, /WHERE e\.model = \$2::text ORDER BY e\.embedding <=> \$1::vector LIMIT \$3/); // the form the HNSW index serves
+  assert.match(SEMANTIC_SEARCH_SQL, /ORDER BY e\.embedding <=> \$1::vector LIMIT \$3\) SELECT/);
   assert.match(SEMANTIC_SEARCH_SQL, /WHERE coalesce\(i\.id, p\.id, c\.id\) IS NOT NULL/);
   assert.doesNotMatch(SEMANTIC_SEARCH_SQL, /\$\{|password|email|SELECT \*/i);
   let seen: readonly unknown[] = [];
-  await searchSemantic(vec, async (_t, params) => { seen = params; return []; });
+  await searchSemantic(vec, "42", async (_t, params) => { seen = params; return []; });
   assert.equal(seen[1], MODEL_NAME);
   assert.equal(seen[2], SEARCH_LIMIT);
+  assert.equal(seen[3], "42");
   assert.match(String(seen[0]), /^\[[\d.,]+\]$/);
 });
 
 test("a query vector of the wrong size or with non-numbers never reaches the database", async () => {
   let called = false;
   const run = async () => { called = true; return []; };
-  await assert.rejects(searchSemantic(vec.slice(1), run), RangeError);
-  await assert.rejects(searchSemantic([...vec.slice(1), NaN], run), TypeError);
+  await assert.rejects(searchSemantic(vec.slice(1), "42", run), RangeError);
+  await assert.rejects(searchSemantic([...vec.slice(1), NaN], "42", run), TypeError);
   assert.equal(called, false);
+});
+
+test("search only returns rows of projects the viewer takes part in: every branch of both queries is checked against the viewer parameter", () => {
+  // Keyword: the issue, pull request and commit branches each carry the participant check on the viewer ($3).
+  assert.equal(KEYWORD_SEARCH_SQL.match(/px\.mentor_id = \$3::bigint/g)?.length, 3);
+  for (const col of ["r.project_id"]) assert.ok(KEYWORD_SEARCH_SQL.includes(`px.id = ${col}`));
+  // Semantic: the check is on the viewer ($4), inside the nearest-vector query and before its LIMIT, for all three kinds.
+  const [inner] = SEMANTIC_SEARCH_SQL.split("LIMIT $3");
+  assert.equal(inner.match(/px\.mentor_id = \$4::bigint/g)?.length, 3);
+  for (const kind of ["issue", "pull_request", "commit"]) assert.ok(inner.includes(`e.entity_type = '${kind}' AND EXISTS`), kind);
+  assert.doesNotMatch(SEMANTIC_SEARCH_SQL, /\$[56]/);
+  assert.doesNotMatch(KEYWORD_SEARCH_SQL, /\$[4-9]/);
 });

@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Issues | CodeCollab" };
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function IssuesPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireSession();
+  const session = await requireSession();
   const sp = await searchParams;
   const repositoryId = typeof sp.repository === "string" ? parseId(sp.repository) : null;
   const status = typeof sp.status === "string" && (ISSUE_STATUSES as readonly string[]).includes(sp.status) ? sp.status : null;
@@ -19,7 +19,7 @@ export default async function IssuesPage({ searchParams }: { searchParams: Searc
 
   let data: { issues: IssueRow[]; total: number; repositories: RepositoryOption[] } | null = null;
   try {
-    const [issues, total, repositories] = await Promise.all([listIssues(filters, page), countIssues(filters), listRepositories()]);
+    const [issues, total, repositories] = await Promise.all([listIssues(filters, page, session.userId), countIssues(filters, session.userId), listRepositories(session.userId)]);
     data = { issues, total, repositories };
   } catch (err) {
     console.error("Issues page: could not load issues:", err instanceof Error ? err.message : err);
