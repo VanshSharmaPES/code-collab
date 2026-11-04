@@ -22,3 +22,10 @@ test("only a parameter placeholder and a table.column name can be put into the f
   for (const bad of ["5", "$0", "$", "$5; DROP TABLE users", "$5::bigint", "'1'", "$100", "$5 OR 1=1"]) assert.throws(() => participantSql(bad, "r.project_id"), TypeError, bad);
   for (const bad of ["project_id", "r.project_id OR 1=1", "r.project_id)", "R.project_id", "r.", "1.id"]) assert.throws(() => managerSql("$1", bad), TypeError, bad);
 });
+
+test("a project column on the fragments' own aliases is refused, so the check cannot compare a row with itself", () => {
+  for (const col of ["px.id", "tx.project_id", "tmx.team_id"]) {
+    assert.throws(() => participantSql("$1", col), TypeError, col);
+    assert.throws(() => managerSql("$1", col), TypeError, col);
+  }
+});

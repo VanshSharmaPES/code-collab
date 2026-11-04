@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  DISTRIBUTION_SQL, NON_REVIEWERS_SQL, ROW_LIMIT, SCORE_STATS_SQL, STALE_DAYS, STALE_ISSUES_SQL, TOP_CONTRIBUTORS_SQL, allScoresEqual, getDashboard, isCapped,
+  DISTRIBUTION_SQL, NON_REVIEWERS_SQL, ROW_LIMIT, SCORE_STATS_SQL, SECTIONS, STALE_DAYS, STALE_ISSUES_SQL, TOP_CONTRIBUTORS_SQL, allScoresEqual, getDashboard, isCapped,
   toBucket, toNonReviewer, toStaleIssue, toStats, toTopContributor,
 } from "./dashboard";
 import { managerSql } from "./project-access";
@@ -87,4 +87,21 @@ test("the dashboard runs the five queries with the viewer, and shows no histogra
   assert.equal(d.stats.members, 0);
   const withData = await getDashboard("42", async (text) => (text === DISTRIBUTION_SQL ? [{ bucket: 1, from_score: 0, to_score: 10, members: 2 }] : text === SCORE_STATS_SQL ? [{ members: "2", min: "1" }] : []));
   assert.deepEqual(withData.buckets, [{ bucket: 1, from_score: 0, to_score: 10, members: 2 }]);
+});
+
+test("one section failing leaves the others in place and is reported; the failure is not thrown", async () => {
+  const quiet = console.error; console.error = () => {};
+  try {
+    const d = await getDashboard("42", async (text) => {
+      if (text === NON_REVIEWERS_SQL) throw new Error("timeout");
+      return text === TOP_CONTRIBUTORS_SQL ? [{ project_id: "1", project_name: "P", rank: 1, user_id: "2", full_name: "A", score: "5", pct_of_project: "100.0" }] : [];
+    });
+    assert.deepEqual(d.failed, ["nonReviewers"]);
+    assert.equal(d.topContributors.length, 1);
+    assert.deepEqual(d.nonReviewers, []);
+    const both = await getDashboard("42", async (text) => { if (text === DISTRIBUTION_SQL || text === SCORE_STATS_SQL) throw new Error("x"); return []; });
+    assert.deepEqual(both.failed, ["distribution"], "the histogram and its statistics are one section, listed once");
+    const all = await getDashboard("42", async () => { throw new Error("db down"); });
+    assert.deepEqual([...all.failed].sort(), [...SECTIONS].sort());
+  } finally { console.error = quiet; }
 });

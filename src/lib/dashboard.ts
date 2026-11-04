@@ -14,7 +14,9 @@ type RunQuery<T> = (text: string, params: readonly unknown[]) => Promise<T[]>;
 // teams) are included, and the viewer ($1) is always the signed-in user. The SQL is written twice, here and in
 // db/queries/, so a change to one must be made in the other (each db/queries file says so too). They read the views and
 // functions of P1-11 and P1-12 (member_contribution_v, contribution_counts), so db/schema/05 and 06 must be applied.
-// Two lists are capped at ROW_LIMIT rows.
+// Two lists are capped at ROW_LIMIT rows; the top-contributors list needs no cap (at most about three rows per managed project).
+// The scores are read live from member_contribution_v, not from contribution_metrics: that table is rebuilt on demand
+// (refresh_contribution_metrics, P1-15) and can lag between refreshes, so it is not a safe source for this page.
 export const ROW_LIMIT = 50;
 export const STALE_DAYS = 14;
 
@@ -68,7 +70,11 @@ export type StaleIssue = { project_id: string; project_name: string; issue_id: s
 export type NonReviewer = { project_id: string; project_name: string; user_id: string; full_name: string; user_role: string; commits: number; prs_opened: number };
 export type Bucket = { bucket: number; from_score: number | null; to_score: number | null; members: number };
 export type ScoreStats = { members: number; min: number | null; p25: number | null; median: number | null; p75: number | null; p90: number | null; max: number | null; mean: number | null; stddev: number | null };
-export type Dashboard = { topContributors: TopContributor[]; staleIssues: StaleIssue[]; nonReviewers: NonReviewer[]; buckets: Bucket[]; stats: ScoreStats };
+// The sections load independently: one that fails is listed in `failed` (its data is empty) and the others still show.
+// Q4a and Q4b are one section, "distribution", because the histogram and its statistics describe the same scores.
+export const SECTIONS = ["top", "stale", "nonReviewers", "distribution"] as const;
+export type Section = (typeof SECTIONS)[number];
+export type Dashboard = { topContributors: TopContributor[]; staleIssues: StaleIssue[]; nonReviewers: NonReviewer[]; buckets: Bucket[]; stats: ScoreStats; failed: Section[] };
 
 export const toTopContributor = (r: Raw): TopContributor => ({ project_id: String(r.project_id), project_name: String(r.project_name), rank: num(r.rank), user_id: String(r.user_id), full_name: String(r.full_name), score: num(r.score), pct_of_project: numOrNull(r.pct_of_project) });
 export const toStaleIssue = (r: Raw): StaleIssue => ({ project_id: String(r.project_id), project_name: String(r.project_name), issue_id: String(r.issue_id), number: num(r.number), title: String(r.title), priority: String(r.priority), status: String(r.status), assignee: r.assignee === null || r.assignee === undefined ? null : String(r.assignee), days_since_update: num(r.days_since_update) });
@@ -83,13 +89,22 @@ export const isCapped = (shown: number): boolean => shown >= ROW_LIMIT;
 
 export async function getDashboard(viewerId: string, run: RunQuery<Raw> = query<Raw>): Promise<Dashboard> {
   const args = [viewerId];
-  const [top, stale, non, dist, stats] = await Promise.all([
+  const [top, stale, non, dist, stats] = await Promise.allSettled([
     run(TOP_CONTRIBUTORS_SQL, args), run(STALE_ISSUES_SQL, args), run(NON_REVIEWERS_SQL, args), run(DISTRIBUTION_SQL, args), run(SCORE_STATS_SQL, args),
   ]);
-  const statsRow = toStats(stats[0]);
+  const failed: Section[] = [];
+  const rowsOf = (r: PromiseSettledResult<Raw[]>, section: Section): Raw[] => {
+    if (r.status === "fulfilled") return r.value;
+    console.error(`Dashboard: the ${section} section could not be loaded:`, r.reason instanceof Error ? r.reason.message : r.reason);
+    if (!failed.includes(section)) failed.push(section);
+    return [];
+  };
+  const topRows = rowsOf(top, "top"), staleRows = rowsOf(stale, "stale"), nonRows = rowsOf(non, "nonReviewers");
+  const distRows = rowsOf(dist, "distribution"), statsRows = rowsOf(stats, "distribution");
+  const statsRow = toStats(statsRows[0]);
   // With no members there is nothing to bucket: the histogram query then has NULL bounds, so every bucket is shown empty.
   return {
-    topContributors: top.map(toTopContributor), staleIssues: stale.map(toStaleIssue), nonReviewers: non.map(toNonReviewer),
-    buckets: statsRow.members === 0 ? [] : dist.map(toBucket), stats: statsRow,
+    topContributors: topRows.map(toTopContributor), staleIssues: staleRows.map(toStaleIssue), nonReviewers: nonRows.map(toNonReviewer),
+    buckets: statsRow.members === 0 ? [] : distRows.map(toBucket), stats: statsRow, failed,
   };
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
-import { ROW_LIMIT, STALE_DAYS, allScoresEqual, getDashboard, isCapped, type Dashboard } from "@/lib/dashboard";
+import { ROW_LIMIT, SECTIONS, STALE_DAYS, allScoresEqual, getDashboard, isCapped, type Dashboard, type Section } from "@/lib/dashboard";
 import { formatLabel } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Dashboard | CodeCollab" };
@@ -9,6 +9,7 @@ export const metadata: Metadata = { title: "Dashboard | CodeCollab" };
 const TH = "px-3 py-2 font-medium";
 const ROW = "border-b border-zinc-200 dark:border-zinc-800";
 const H2 = "text-lg font-semibold";
+const ERROR = "mt-2 text-sm text-red-700 dark:text-red-400";
 const NOTE = "mt-1 text-xs text-zinc-600 dark:text-zinc-400";
 
 export default async function DashboardPage() {
@@ -21,7 +22,8 @@ export default async function DashboardPage() {
     console.error("Dashboard page: could not load the dashboard:", err instanceof Error ? err.message : err);
   }
 
-  if (data === null) {
+  // Every section failing means the database is unreachable: the single error is clearer than four.
+  if (data === null || data.failed.length === SECTIONS.length) {
     return (
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
@@ -30,8 +32,9 @@ export default async function DashboardPage() {
     );
   }
 
-  const { topContributors, staleIssues, nonReviewers, buckets, stats } = data;
-  const empty = stats.members === 0 && staleIssues.length === 0;
+  const { topContributors, staleIssues, nonReviewers, buckets, stats, failed } = data;
+  const empty = failed.length === 0 && stats.members === 0 && staleIssues.length === 0;
+  const broken = (s: Section) => failed.includes(s);
   const widest = Math.max(1, ...buckets.map((b) => b.members));
 
   return (
@@ -46,7 +49,7 @@ export default async function DashboardPage() {
           <section>
             <h2 className={H2}>Top contributors</h2>
             <p className={NOTE}>The top three ranks in each project (people who tie share a rank, so a project can list more than three), with their share of the project total.</p>
-            {topContributors.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">No data.</p> : (
+            {broken("top") ? <p role="alert" className={ERROR}>This section could not be loaded right now.</p> : topContributors.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">No data.</p> : (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
                   <caption className="sr-only">Top contributors per project</caption>
@@ -71,7 +74,7 @@ export default async function DashboardPage() {
           <section>
             <h2 className={H2}>Stale high-priority issues</h2>
             <p className={NOTE}>High and critical issues that are still open or in progress and have not changed for more than {STALE_DAYS} days. Critical first, then the longest neglected.{isCapped(staleIssues.length) && ` Showing the first ${ROW_LIMIT} results.`}</p>
-            {staleIssues.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">None.</p> : (
+            {broken("stale") ? <p role="alert" className={ERROR}>This section could not be loaded right now.</p> : staleIssues.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">None.</p> : (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
                   <caption className="sr-only">Stale high-priority issues</caption>
@@ -97,7 +100,7 @@ export default async function DashboardPage() {
           <section>
             <h2 className={H2}>Members who never review</h2>
             <p className={NOTE}>Team members with no review on any pull request of their project, most active first.{isCapped(nonReviewers.length) && ` Showing the first ${ROW_LIMIT} results.`}</p>
-            {nonReviewers.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Everyone has reviewed at least once.</p> : (
+            {broken("nonReviewers") ? <p role="alert" className={ERROR}>This section could not be loaded right now.</p> : nonReviewers.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Everyone has reviewed at least once.</p> : (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
                   <caption className="sr-only">Members who never review</caption>
@@ -120,8 +123,8 @@ export default async function DashboardPage() {
 
           <section>
             <h2 className={H2}>Contribution distribution</h2>
-            <p className={NOTE}>How many members fall into each of eight equal score ranges, and summary statistics for {stats.members} members.</p>
-            {buckets.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">No data.</p> : allScoresEqual(stats) ? (
+            <p className={NOTE}>How many members fall into each of eight equal score ranges, and summary statistics{!broken("distribution") && <> for {stats.members} members</>}.</p>
+            {broken("distribution") ? <p role="alert" className={ERROR}>This section could not be loaded right now.</p> : buckets.length === 0 ? <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">No data.</p> : allScoresEqual(stats) ? (
               <p className="mt-3 text-sm">All {stats.members} members score {stats.min}.</p>
             ) : (
               <ol className="mt-3 flex flex-col gap-1 text-sm" aria-label="Members per score range">
@@ -134,11 +137,11 @@ export default async function DashboardPage() {
                 ))}
               </ol>
             )}
-            <dl className="mt-4 grid max-w-md grid-cols-[max-content_1fr] gap-x-6 gap-y-1 text-sm">
+            {!broken("distribution") && <dl className="mt-4 grid max-w-md grid-cols-[max-content_1fr] gap-x-6 gap-y-1 text-sm">
               {([["Minimum", stats.min], ["25th percentile", stats.p25], ["Median", stats.median], ["75th percentile", stats.p75], ["90th percentile", stats.p90], ["Maximum", stats.max], ["Mean", stats.mean], ["Standard deviation", stats.stddev]] as const).map(([label, v]) => (
                 <div key={label} className="contents"><dt className="font-medium">{label}</dt><dd className="tabular-nums">{v ?? "—"}</dd></div>
               ))}
-            </dl>
+            </dl>}
           </section>
         </div>
       )}
