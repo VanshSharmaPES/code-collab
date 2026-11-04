@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Tells the browser the page has both themes, so native controls (scrollbars, date pickers, and the dropdown list of
+     a <select>) are drawn in the theme chosen by prefers-color-scheme. */
+  color-scheme: light dark;
 }
 
 @theme inline {
@@ -23,4 +26,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* A <select> with a transparent background gets a default white dropdown list from the browser, while the text colour
+   stays the page's (light in dark mode): light text on white. Giving the select, and so its options, the page colours
+   fixes every dropdown at once. This rule is outside Tailwind's layers, so it also beats the bg-transparent class. */
+select,
+select option {
+  background-color: var(--background);
+  color: var(--foreground);
 }
