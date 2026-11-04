@@ -10,13 +10,13 @@ import { IssueForm } from "../../issue-form";
 export const metadata: Metadata = { title: "Edit issue | CodeCollab" };
 
 export default async function EditIssuePage({ params }: { params: Promise<{ id: string }> }) {
-  await requireSession();
+  const session = await requireSession();
   const id = parseId((await params).id);
   if (id === null) notFound();
 
   let issue: IssueRow | null;
   try {
-    issue = await getIssue(id);
+    issue = await getIssue(id, session.userId);
   } catch (err) {
     console.error("Edit issue page: could not load the issue:", err instanceof Error ? err.message : err);
     return (

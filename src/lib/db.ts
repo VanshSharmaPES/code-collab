@@ -27,3 +27,23 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   const result = await getPool().query<T>(text, [...params]);
   return result.rows;
 }
+
+export type TxRun = <T extends QueryResultRow = QueryResultRow>(text: string, params?: readonly unknown[]) => Promise<T[]>;
+
+// Runs `fn` on one pooled connection inside BEGIN ... COMMIT (ROLLBACK if it throws), so SET LOCAL settings apply to
+// exactly the statements `fn` runs and never leak to another request.
+export async function withTransaction<R>(fn: (run: TxRun) => Promise<R>): Promise<R> {
+  const client = await getPool().connect();
+  let broken = false;
+  try {
+    await client.query("BEGIN");
+    const out = await fn(async <T extends QueryResultRow = QueryResultRow>(text: string, params: readonly unknown[] = []) => (await client.query<T>(text, [...params])).rows);
+    await client.query("COMMIT");
+    return out;
+  } catch (err) {
+    try { await client.query("ROLLBACK"); } catch { broken = true; } // a connection that cannot roll back is discarded, not reused
+    throw err;
+  } finally {
+    client.release(broken);
+  }
+}
