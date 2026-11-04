@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Tells the browser the page has both themes, so native controls (scrollbars, date pickers, and the dropdown list of
+     a <select>) are drawn in the theme chosen by prefers-color-scheme. */
+  color-scheme: light dark;
 }
 
 @theme inline {
@@ -23,4 +26,37 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* A <select> with a transparent background gets a default white dropdown list from the browser, while the text colour
+   stays the page's (light in dark mode): light text on white. Giving the select, and so its options, the page colours
+   fixes every dropdown at once. This rule is outside Tailwind's layers, so it also beats the bg-transparent class. */
+select,
+select option {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Chromium 135 and later can draw the dropdown list as ordinary page content (appearance: base-select) instead of a
+   native popup, so it can be styled like everything else and always matches the page theme. Other browsers keep the
+   native list, which the rules above make readable. */
+@supports (appearance: base-select) {
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+  ::picker(select) {
+    background-color: var(--background);
+    color: var(--foreground);
+    border: 1px solid color-mix(in srgb, var(--foreground) 30%, transparent);
+    border-radius: 0.25rem;
+    padding: 0.25rem;
+  }
+  select option {
+    padding: 0.375rem 0.75rem;
+  }
+  select option:hover,
+  select option:focus-visible {
+    background-color: color-mix(in srgb, var(--foreground) 14%, var(--background));
+  }
 }

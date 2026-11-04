@@ -9,13 +9,13 @@ export const MAX_USERS = 200;
 // leads and team members of every project the viewer takes part in (P1-07, the same rule as project-access.ts).
 // Someone on no project sees only themselves. The viewer is listed first, so the MAX_USERS cap never drops them. The alias pv must differ from the px, tx and tmx used inside participantSql.
 export const LIST_USERS_SQL =
-  "WITH mine AS (SELECT pv.id FROM projects pv WHERE " + participantSql("$2", "pv.id") + "), " +
-  "people AS (SELECT mentor_id AS user_id FROM projects WHERE id IN (SELECT id FROM mine) " +
-  "UNION SELECT lead_id FROM teams WHERE project_id IN (SELECT id FROM mine) " +
-  "UNION SELECT tm.user_id FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE t.project_id IN (SELECT id FROM mine) " +
-  "UNION SELECT $2::bigint) " +
-  "SELECT id, full_name, email, role, github_username, created_at FROM users " +
-  "WHERE id IN (SELECT user_id FROM people) ORDER BY (id = $2::bigint) DESC, id LIMIT $1";
+  `WITH mine AS (SELECT pv.id FROM projects pv WHERE ${participantSql("$2", "pv.id")}), ` +
+  `people AS (SELECT mentor_id AS user_id FROM projects WHERE id IN (SELECT id FROM mine) ` +
+  `UNION SELECT lead_id FROM teams WHERE project_id IN (SELECT id FROM mine) ` +
+  `UNION SELECT tm.user_id FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE t.project_id IN (SELECT id FROM mine) ` +
+  `UNION SELECT $2::bigint) ` +
+  `SELECT id, full_name, email, role, github_username, created_at FROM users ` +
+  `WHERE id IN (SELECT user_id FROM people) ORDER BY (id = $2::bigint) DESC, id LIMIT $1`;
 
 type UserRow = {
   id: string;
