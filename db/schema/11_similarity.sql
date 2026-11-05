@@ -14,6 +14,12 @@
 -- (participantSql in src/lib/project-access.ts), as for every other query.
 --
 -- Similarity is cosine similarity, 1 - (a <=> b): 1 means the same direction, 0 unrelated.
+-- The threshold p_min_similarity is compared with the similarity rounded to three decimals, so 0.7996 passes a 0.80
+-- threshold. A vector of all zeros has no direction: its cosine distance is NaN, and NaN sorts above every number, so it
+-- is excluded explicitly rather than allowed to come back as the best match.
+--
+-- Requires 08_embeddings.sql (the embeddings table and pgvector), which arrives with the semantic search PR. Apply
+-- the schema files in order: this file fails on a database that does not have the embeddings table yet.
 
 -- Possible duplicates of an issue: the most similar other issues of the same project, open or closed (a duplicate of
 -- a closed issue is just as useful to know). Nothing is returned when the issue has no embedding for this model.
@@ -42,6 +48,7 @@ LANGUAGE sql STABLE AS $$
     SELECT id, number, title, status, repository_id, similarity
       FROM scored
      WHERE similarity >= p_min_similarity
+       AND similarity <> 'NaN'::numeric             -- an all-zero embedding has no direction (see the header)
      ORDER BY similarity DESC, id
      LIMIT greatest(p_limit, 0);
 $$;
@@ -53,7 +60,8 @@ $$;
 --      not judged it as a reviewer).
 --   3. Only members and leads of the project's teams are suggested. The pull request's author is never suggested (the
 --      self-review trigger, P1-10, would refuse them), and neither is anyone who has already reviewed it.
--- evidence is how many of the similar pull requests the person reviewed or authored.
+-- evidence is how many of the similar pull requests the person reviewed or authored. Every review counts the same
+-- whatever its verdict (approved, changes_requested or commented): what matters is that the person read similar code.
 CREATE OR REPLACE FUNCTION recommend_reviewers(
     p_pr_id      BIGINT,
     p_model      TEXT,

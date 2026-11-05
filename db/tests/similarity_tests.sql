@@ -45,25 +45,34 @@ WITH ins AS (INSERT INTO repositories (project_id, name) SELECT id, 'sim-repo-' 
 SELECT k, id FROM ins;
 
 -- Issues. i1 is the one we look up. i2 is nearly the same, i3 half related, i4 unrelated, i5 has no embedding,
--- i6 is identical but in project Q, i7 is identical but embedded with another model.
+-- i6 is identical but in project Q, i7 is identical but embedded with another model, i8 is closed and fairly close
+-- (similarity 0.7), i9 has an all-zero vector (cosine distance to it is NaN).
 CREATE TEMP TABLE iss (k text, id bigint);
 WITH ins AS (
-    INSERT INTO issues (repository_id, number, title)
-    SELECT (SELECT id FROM rp WHERE k = CASE WHEN n = 6 THEN 'Q' ELSE 'P' END), 900000 + n, 'sim issue ' || n
-      FROM generate_series(1, 7) n
+    INSERT INTO issues (repository_id, number, title, status, closed_at)
+    SELECT (SELECT id FROM rp WHERE k = CASE WHEN n = 6 THEN 'Q' ELSE 'P' END), 900000 + n, 'sim issue ' || n,
+           CASE WHEN n = 8 THEN 'closed' ELSE 'open' END, CASE WHEN n = 8 THEN now() END  -- a closed issue needs closed_at
+      FROM generate_series(1, 9) n
     RETURNING id, 'i' || (number - 900000) AS k)
 INSERT INTO iss SELECT k, id FROM ins;
 INSERT INTO embeddings (entity_type, entity_id, model, content_hash, embedding)
 SELECT 'issue', iss.id, CASE WHEN iss.k = 'i7' THEN 'other-model' ELSE 'test-model' END, 'h', v.e
   FROM iss JOIN (VALUES ('i1', pg_temp.vec(1, 0, 0)), ('i2', pg_temp.vec(0.98, 0.2, 0)), ('i3', pg_temp.vec(0.6, 0.8, 0)),
-                        ('i4', pg_temp.vec(0, 0, 1)), ('i6', pg_temp.vec(1, 0, 0)), ('i7', pg_temp.vec(1, 0, 0))) v(k, e) USING (k);
+                        ('i4', pg_temp.vec(0, 0, 1)), ('i6', pg_temp.vec(1, 0, 0)), ('i7', pg_temp.vec(1, 0, 0)),
+                        ('i8', pg_temp.vec(0.7, 0.714143, 0)), ('i9', pg_temp.vec(0, 0, 0))) v(k, e) USING (k);
 CREATE FUNCTION pg_temp.i(p_k text) RETURNS bigint LANGUAGE sql AS $$ SELECT id FROM iss WHERE k = p_k $$;
 
 \echo '--- similar_issues'
 SELECT pg_temp.expect_true('default threshold finds only the near-identical issue',
   format($q$ARRAY(SELECT issue_id FROM similar_issues(%s, 'test-model')) = ARRAY[%s]::bigint[]$q$, pg_temp.i('i1'), pg_temp.i('i2')));
-SELECT pg_temp.expect_true('a lower threshold adds the half-related issue, most similar first',
-  format($q$ARRAY(SELECT issue_id FROM similar_issues(%s, 'test-model', 5, 0.5)) = ARRAY[%s, %s]::bigint[]$q$, pg_temp.i('i1'), pg_temp.i('i2'), pg_temp.i('i3')));
+SELECT pg_temp.expect_true('a lower threshold adds the closed and the half-related issue, most similar first',
+  format($q$ARRAY(SELECT issue_id FROM similar_issues(%s, 'test-model', 5, 0.5)) = ARRAY[%s, %s, %s]::bigint[]$q$, pg_temp.i('i1'), pg_temp.i('i2'), pg_temp.i('i8'), pg_temp.i('i3')));
+SELECT pg_temp.expect_true('a closed issue is returned as a possible duplicate, with its status',
+  format($q$(SELECT status FROM similar_issues(%s, 'test-model', 5, 0.5) WHERE issue_id = %s) = 'closed'$q$, pg_temp.i('i1'), pg_temp.i('i8')));
+SELECT pg_temp.expect_true('an all-zero embedding is never a match (its cosine similarity is NaN, which sorts above every number)',
+  format($q$NOT EXISTS (SELECT 1 FROM similar_issues(%s, 'test-model', 50, -1) WHERE issue_id = %s OR similarity = 'NaN'::numeric)$q$, pg_temp.i('i1'), pg_temp.i('i9')));
+SELECT pg_temp.expect_true('looking up an issue whose own embedding is all zeros gives no rows',
+  format($q$NOT EXISTS (SELECT 1 FROM similar_issues(%s, 'test-model', 50, -1))$q$, pg_temp.i('i9')));
 SELECT pg_temp.expect_true('the issue itself, other projects and other models are never returned',
   format($q$NOT EXISTS (SELECT 1 FROM similar_issues(%s, 'test-model', 50, -1) WHERE issue_id IN (%s, %s, %s))$q$,
          pg_temp.i('i1'), pg_temp.i('i1'), pg_temp.i('i6'), pg_temp.i('i7')));
