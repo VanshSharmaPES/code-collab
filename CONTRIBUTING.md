@@ -73,3 +73,11 @@
 
 - Comments are stored as flat MongoDB documents. Replies reference their parent through `parentId`; the UI renders the reply hierarchy. Reply nesting is capped at a maximum depth of 5.
 - Reading and writing comments requires authentication and project-participant access, following the same access rules as issue and pull-request pages.
+
+## Similarity queries (P1-18)
+- `db/schema/11_similarity.sql` adds two functions. It needs `08_embeddings.sql` (P1-17) and vectors written by the embedding pipeline (P2-17), so merge it after them. Pass the model name the pipeline used.
+  - `similar_issues(issue_id, model, limit = 5, min_similarity = 0.80)`: possible duplicates of an issue, from the same project, open or closed, most similar first.
+  - `recommend_reviewers(pr_id, model, limit = 3, neighbours = 20)`: takes the most similar pull requests of the same project, and scores everyone who reviewed one (full similarity) or wrote one (half). Only members and leads of the project's teams are suggested, never the author or anyone who already reviewed it. `evidence` is the number of similar pull requests behind the score.
+- Both compare every row of the project exactly instead of using the HNSW index. The index finds the nearest rows of all projects first and filters afterwards, so a project-scoped query through it can return fewer rows than asked. On the seed data with a vector for every issue, pull request and commit, each call takes 3 to 7 ms.
+- Neither function checks who is asking: check that the viewer takes part in the project first (`participantSql`).
+- Tests: `db/tests/similarity_tests.sql` builds a small project with hand-made vectors, checks the results, and rolls back.
