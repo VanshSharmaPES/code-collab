@@ -4,34 +4,65 @@ A contribution-aware collaboration and verification platform for student softwar
 
 Mini project for the Database Management Systems course at PES University.
 
+## Status
+
+Both databases, the ingestion pipeline and the similarity search are built and tested. The web interface is the part still being finished.
+
+| Area | State |
+|---|---|
+| PostgreSQL schema, constraints, triggers, procedures, views | Done (16 tables, `db/schema/01`–`11`) |
+| Analytical queries and index tuning | Done, measured on a 1.2-million-row database (`docs/index_tuning.md`) |
+| GitHub ingestion into PostgreSQL | Done (`npm run ingest`) |
+| MongoDB collections, outbox sync, analytics | Done (`npm run mongo:setup`, `npm run outbox`, `npm run analytics`) |
+| Embeddings and semantic search | Done (`npm run embed`, `/search`, `similar_issues`, `recommend_reviewers`) |
+| Authentication and per-project access control | Done on the server (argon2 passwords, signed session cookies) |
+| Application pages | Issues, pull requests, dashboard, contributions, search and users all work |
+| Known gap | There is **no sign-in form and no navigation bar yet**. The home page is a placeholder, pages are reached by typing the URL, and a session is created by posting to `/api/auth/login`. |
+
 ## Architecture
 
 | Layer | Technology | Holds |
 |---|---|---|
-| System of record | PostgreSQL 16 | Users, projects, teams, repositories, commits, issues, pull requests, reviews, audit log, contribution metrics |
-| Document store | MongoDB 7 | Activity stream, comment threads, per-commit file changes, expiring notifications (planned) |
-| Similarity search | pgvector, inside PostgreSQL | Duplicate-issue detection and reviewer recommendation (optional, decided on 1 November) |
-| Web application | Next.js (App Router, TypeScript) | Role-based interface for students, team leads and faculty mentors |
+| System of record | PostgreSQL 16 | Users, projects, teams, repositories, commits, issues, pull requests, reviews, audit log, contribution metrics, outbox |
+| Document store | MongoDB 7 | Activity stream, comment threads, per-commit file changes, expiring notifications |
+| Similarity search | pgvector, inside PostgreSQL | Duplicate-issue detection and reviewer recommendation |
+| Web application | Next.js 16 (App Router, TypeScript, React 19) | Role-based interface for students, team leads and faculty mentors |
 
 The application talks to PostgreSQL through `node-postgres` with raw parameterised SQL. There is no ORM, so every query in the app is plain SQL that can be read and explained.
+
+PostgreSQL and MongoDB are kept in step by a transactional outbox: a status change writes its event to the `outbox` table in the same transaction as the change, and a worker delivers it to MongoDB at least once.
 
 ## Repository layout
 
 ```
 db/
-  schema/      DDL and database objects, applied in file-name order
+  schema/      DDL and database objects, applied in file-name order (01-11)
+  queries/     the four analytical queries, as standalone SQL
+  perf/        scale-up script, measurement harness and saved EXPLAIN plans
   seed/        synthetic dataset for development
   tests/       demonstration scripts; each runs in a transaction and rolls back
   setup.md     how to run PostgreSQL and MongoDB locally
   apply.sh     drop and rebuild the database from schema/ and seed/
 docs/
-  er.png       ER diagram of all 14 tables
-  er_core.md   Mermaid source of the diagram
-  on_delete.md ON DELETE policy for every foreign key
+  er.png            ER diagram of the core tables
+  er_core.md        Mermaid source of the diagram
+  on_delete.md      ON DELETE policy for every foreign key
+  index_tuning.md   query timings before and after tuning, with method
+scripts/
+  seed.ts           insert-only seed skeleton
+  ingest.ts         GitHub ingestion into PostgreSQL
+  mongo-setup.ts    create MongoDB collections and indexes
+  outbox-worker.ts  deliver outbox rows to MongoDB
+  load-commit-files.ts  load per-commit file changes into MongoDB
+  analytics.ts      read-only MongoDB aggregation reports
+  embed.ts          generate embeddings for issues, commits and pull requests
 src/
-  app/         Next.js routes, including /api/health/db
-  lib/db.ts    shared PostgreSQL connection pool and query helper
+  app/         Next.js routes and server actions
+  lib/         database pools, access control, query modules, validation
+  proxy.ts     request-level redirect rules
 ```
+
+Most modules have a `*.test.ts` next to them; `npm test` runs them all.
 
 ## Prerequisites
 
@@ -47,7 +78,7 @@ src/
 cp .env.example .env
 ```
 
-The defaults in `.env.example` match the container setup below. `.env` is git-ignored and must never be committed.
+Fill in at least `DATABASE_URL`, `MONGO_URL` and `SESSION_SECRET` (`openssl rand -base64 32`). `GITHUB_TOKEN` is needed only for ingestion and `SEED_PASSWORD` only for `npm run seed`. The other defaults match the container setup below. `.env` is git-ignored and must never be committed.
 
 ### 2. Start the databases
 
@@ -61,6 +92,8 @@ podman run -d --name cc-mongo \
   -p 27017:27017 -v cc-mongodata:/data/db \
   docker.io/library/mongo:7
 ```
+
+The pgvector image is required, not optional: `db/schema/08_embeddings.sql` enables the `vector` extension. pgvector 0.8 or newer is needed for the semantic search to return complete results.
 
 After a reboot, `podman start cc-postgres cc-mongo` brings them back with their data. `db/setup.md` covers verification, resets and troubleshooting. Docker users can replace `podman` with `docker` throughout.
 
@@ -77,16 +110,54 @@ podman exec -i cc-postgres psql -U codecollab -v ON_ERROR_STOP=1 < db/seed/dev_s
 
 If you have a local `psql` client, `./db/apply.sh` does the same in one step. It drops the whole `public` schema first, so use it only on a development database.
 
-### 4. Run the application
+### 4. Create the MongoDB collections
 
 ```bash
 npm install
+npm run mongo:setup            # dry run: lists what it would create
+npm run mongo:setup -- --apply
+```
+
+This creates `activity_events`, `comments`, `commit_files` and `notifications` with their indexes. It only ever creates, never drops, and is safe to rerun.
+
+### 5. Run the application
+
+```bash
 npm run dev
 ```
 
 The app runs on http://localhost:3001. To confirm it can reach PostgreSQL, open http://localhost:3001/api/health/db, which returns `{"status":"ok"}`.
 
-Before opening a pull request, `npm run lint`, `npx tsc --noEmit` and `npm run build` should all pass.
+There is no sign-in page yet. To get a session cookie for a seeded account:
+
+```bash
+curl -i -X POST http://localhost:3001/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"user01@seed.codecollab.test","password":"password123"}'
+```
+
+Then open `/dashboard`, `/issues`, `/pull-requests`, `/contributions`, `/search` or `/users` directly with that cookie. `/api/auth/logout` clears it.
+
+Before opening a pull request, `npm run lint`, `npx tsc --noEmit`, `npm run build` and `npm test` should all pass.
+
+## Command reference
+
+Every write command has a dry run by default and needs `-- --apply` to change anything. Each one refuses to run against anything but a local database named `codecollab`.
+
+| Command | Does |
+|---|---|
+| `npm test` | Unit tests with fake databases and a fake embedding model. Set `TEST_PG_ADMIN_URL`, `TEST_MONGO_URL` or `TEST_REAL_MODEL=1` to also run the integration tests. |
+| `npm run seed` | Insert-only skeleton: 4 users and 2 projects. Separate from `db/seed/dev_synthetic.sql`. |
+| `npm run ingest` | Load real repositories from GitHub into PostgreSQL. Default targets are `pallets/flask`, `expressjs/express` and `pallets/click`. A full run is roughly 15,500 requests, so 3 to 4 hours at GitHub's rate limit; it resumes safely. |
+| `npm run mongo:setup` | Create MongoDB collections and indexes. |
+| `npm run outbox` | Deliver status-change events from the `outbox` table to `activity_events`. Add `--once` to drain and exit. |
+| `npm run load:commit-files` | Load `tmp/ingest/*.commit-files.jsonl` into `commit_files`. |
+| `npm run analytics -- <report>` | Read-only MongoDB reports: `monthly`, `files`, `events`. |
+| `npm run embed` | Embed issues, commits and pull requests with a local sentence-transformer (`Xenova/all-MiniLM-L6-v2`, 384 dimensions, no API key). About 35 texts a second. |
+
+Ingestion keeps personal data to a minimum: commit author names and emails are never stored, and email addresses inside titles, bodies and messages are replaced with `[email redacted]`.
+
+`CONTRIBUTING.md` documents each of these in full, including the access rules and the guards.
 
 ## Synthetic dataset
 
@@ -104,13 +175,16 @@ Before opening a pull request, `npm run lint`, `npx tsc --noEmit` and `npm run b
 
 These credentials exist only in the local synthetic dataset.
 
+For performance work, `db/perf/scale_up.sql` grows a separate `codecollab_perf` database to 1,015,000 commits, 154,000 issues and 82,000 pull requests.
+
 ## Database design
 
-Fourteen tables, shown in `docs/er.png`:
+Sixteen tables. The fourteen core ones are shown in `docs/er.png`:
 
 - **Core:** `users`, `projects`, `teams`, `team_members`, `repositories`, `commits`, `issues`, `pull_requests`
 - **Collaboration:** `pr_reviews`, `pr_issue_links`, `labels`, `issue_labels`
 - **Accountability:** `audit_log`, `contribution_metrics`
+- **Added since the diagram:** `outbox` (PostgreSQL-to-MongoDB events), `embeddings` (pgvector)
 
 Integrity is enforced in the database, not only in the application: CHECK constraints on every status and priority, composite UNIQUE keys (one issue number per repository, one review per reviewer per pull request), and a documented ON DELETE rule for each of the 25 foreign keys (`docs/on_delete.md`).
 
@@ -119,11 +193,22 @@ Integrity is enforced in the database, not only in the application: CHECK constr
 | Object | Kind | Purpose |
 |---|---|---|
 | `merge_pull_request(pr_id, merger_id)` | Stored procedure | Merges an approved pull request in one transaction: locks the row, validates it, closes linked issues, writes the audit trail and updates metrics. Any failure undoes all of it. |
+| `refresh_contribution_metrics(project_id)` | Stored procedure | Rebuilds `contribution_metrics`, for one project or all of them. |
 | `trg_pull_requests_status_audit`, `trg_issues_status_audit` | Triggers | Record every status change in `audit_log` |
+| `trg_pull_requests_status_outbox`, `trg_issues_status_outbox` | Triggers | Write every status change to `outbox`, in the same transaction |
 | `trg_pr_reviews_no_self_review` | Trigger | Stops a user from reviewing their own pull request |
 | `contribution_score(user_id, project_id)` | Function | Weighted score: commit 1, merged pull request 5, review 3, closed issue 2 |
+| `contribution_counts(user_id, project_id)` | Function | The four raw counts behind the score |
+| `similar_issues(issue_id, model, limit, min_similarity)` | Function | Possible duplicates of an issue, from the same project, most similar first |
+| `recommend_reviewers(pr_id, model, limit, neighbours)` | Function | Reviewers scored from the most similar pull requests of the project, excluding the author and existing reviewers |
 | `project_dashboard_v` | View | One row per project with issue, pull request and commit counts |
 | `member_contribution_v` | View | One row per member per project, with counts and score |
+
+Neither similarity function checks who is asking. Callers must apply the participant check first; the application does this in `src/lib/project-access.ts`.
+
+### Access control
+
+A **participant** of a project is its mentor, the lead of one of its teams, or a member of one of its teams. Issues, pull requests, repositories and search results are visible only to participants, and a non-participant gets "not found" rather than "forbidden", so the existence of other projects' rows is not revealed. The check lives inside every query, and the viewer is always the signed-in user. Permission follows a person's place in a project, not the `role` column, so a forged or stale role claim cannot widen access. Full rules are in `CONTRIBUTING.md`.
 
 ### Demonstration scripts
 
@@ -139,12 +224,16 @@ podman exec -i cc-postgres psql -U codecollab < db/tests/merge_demo.sql
 | `merge_demo.sql` | A deliberately failed merge that leaves the database unchanged, then a successful one |
 | `triggers_demo.sql` | Status auditing, and self-review being rejected |
 | `views_demo.sql` | View totals reconciled against the raw tables, and the score checked by hand |
+| `integrity_tests.sql` | Constraints rejecting bad rows |
+| `outbox_demo.sql` | A status change and its outbox row committing together |
+| `refresh_tests.sql` | `refresh_contribution_metrics` against live counts |
+| `similarity_tests.sql` | `similar_issues` and `recommend_reviewers` on hand-made vectors |
 
 ## Team
 
 | Member | Owns |
 |---|---|
-| [@VanshSharmaPES](https://github.com/VanshSharmaPES) | Relational schema, constraints, transactions, triggers, procedures, views, analytical queries, index tuning, access control, synthetic data |
-| [@Shubhikapradeep](https://github.com/Shubhikapradeep) | MongoDB collections and pipelines, PostgreSQL-to-MongoDB synchronisation, GitHub ingestion, application pages, security hardening |
+| [@VanshSharmaPES](https://github.com/VanshSharmaPES) | Relational schema, constraints, transactions, triggers, procedures, views, analytical queries, index tuning, access control, synthetic data, similarity queries |
+| [@Shubhikapradeep](https://github.com/Shubhikapradeep) | MongoDB collections and pipelines, PostgreSQL-to-MongoDB synchronisation, GitHub ingestion, embeddings and semantic search, application pages, security hardening |
 
 How we branch, commit and review is in `CONTRIBUTING.md`.
