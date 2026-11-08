@@ -22,7 +22,6 @@ tmp/
 # personal reference, not for the repo
 plan.md
 CodeCollab_Work_Split_Plan.pdf
-.claude/
 
 # TypeScript / Next.js generated
 *.tsbuildinfo
