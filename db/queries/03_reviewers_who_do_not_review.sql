@@ -1,4 +1,5 @@
 -- Q3: team members who have never reviewed a pull request in their project, together
+-- Keep in step with src/lib/dashboard.ts: the dashboard runs this query with a manager filter added.
 -- with how active they are otherwise. An anti-join: LEFT JOIN to the reviewers, then keep
 -- only the rows where no match was found.
 SELECT p.id   AS project_id,
