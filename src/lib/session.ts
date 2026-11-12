@@ -23,9 +23,8 @@ export async function getSession(): Promise<SessionPayload | null> {
   return readSession(token, process.env.SESSION_SECRET);
 }
 
-// There is no login page yet, so visitors without a session go back to the home page.
-// Change this one constant when a login page exists.
-export const UNAUTHENTICATED_REDIRECT = "/";
+// Visitors without a session are sent to the login page (src/app/login). src/proxy.ts uses the same path.
+export const UNAUTHENTICATED_REDIRECT = "/login";
 
 // For server components: ends rendering with a redirect when there is no valid session.
 export async function requireSession(): Promise<SessionPayload> {
