@@ -92,3 +92,11 @@ test("the login page and header render text as escaped React children and use a 
   assert.match(read("../app/site-header.tsx"), /<form action=\{logoutAction\}/);
   assert.match(read("../app/layout.tsx"), /<Suspense fallback=\{null\}><SiteHeader \/><\/Suspense>/); // cookies need a Suspense boundary (cacheComponents)
 });
+
+test("the header links every signed-in page, and only shows the dashboard to a mentor or lead", () => {
+  const src = read("../app/site-header.tsx");
+  for (const href of ["/dashboard", "/issues", "/pull-requests", "/contributions", "/search", "/users"]) assert.match(src, new RegExp(`href: "${href}"`));
+  assert.match(src, /managersOnly: true/);
+  assert.match(src, /!l\.managersOnly \|\| session\.role !== "student"/);
+  for (const href of ["/dashboard", "/search"]) assert.ok(config.matcher.includes(href), `${href} is protected by the proxy`);
+});

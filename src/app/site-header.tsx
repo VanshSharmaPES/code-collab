@@ -5,11 +5,14 @@ import { logoutAction } from "./login/actions";
 
 // Every page of the app is reached from here. It shows nothing to a visitor without a session, and never decides what
 // someone may see: each page and query still checks access itself.
+// The dashboard is for people who manage a project (a mentor, or a team lead); a student would only see a message there.
 const LINKS = [
-  { href: "/issues", label: "Issues" },
-  { href: "/pull-requests", label: "Pull requests" },
-  { href: "/contributions", label: "Contributions" },
-  { href: "/users", label: "Users" },
+  { href: "/dashboard", label: "Dashboard", managersOnly: true },
+  { href: "/issues", label: "Issues", managersOnly: false },
+  { href: "/pull-requests", label: "Pull requests", managersOnly: false },
+  { href: "/contributions", label: "Contributions", managersOnly: false },
+  { href: "/search", label: "Search", managersOnly: false },
+  { href: "/users", label: "Users", managersOnly: false },
 ] as const;
 
 async function displayName(userId: string): Promise<string | null> {
@@ -30,7 +33,7 @@ export async function SiteHeader() {
       <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-3 text-sm">
         <Link href="/" className="font-semibold">CodeCollab</Link>
         <nav aria-label="Main" className="flex flex-wrap gap-4">
-          {LINKS.map((l) => <Link key={l.href} href={l.href} className="underline">{l.label}</Link>)}
+          {LINKS.filter((l) => !l.managersOnly || session.role !== "student").map((l) => <Link key={l.href} href={l.href} className="underline">{l.label}</Link>)}
         </nav>
         <div className="ml-auto flex items-center gap-3">
           <span className="text-zinc-600 dark:text-zinc-400">{name ?? "Signed in"} · <span className="capitalize">{session.role}</span></span>
