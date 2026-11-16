@@ -46,7 +46,9 @@ INSERT INTO pr_reviews (pull_request_id, reviewer_id, verdict) VALUES (:pr, NULL
 ROLLBACK TO c2;
 \echo '--- C3. someone else reviews: must succeed'
 SELECT user_id AS other FROM team_members tm JOIN teams t ON t.id = tm.team_id
-WHERE t.project_id = :proj AND tm.user_id <> :author ORDER BY user_id LIMIT 1 \gset
+WHERE t.project_id = :proj AND tm.user_id <> :author
+  AND NOT EXISTS (SELECT 1 FROM pr_reviews v WHERE v.pull_request_id = :pr AND v.reviewer_id = tm.user_id)
+ORDER BY user_id LIMIT 1 \gset
 INSERT INTO pr_reviews (pull_request_id, reviewer_id, verdict) VALUES (:pr, :other, 'commented');
 SELECT reviewer_id = :other AS inserted FROM pr_reviews WHERE pull_request_id = :pr AND reviewer_id = :other;
 \echo '--- C4. move that review onto the reviewer''s OWN pull request: must fail'
