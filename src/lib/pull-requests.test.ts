@@ -204,10 +204,10 @@ test("the database text never reaches the page: every code used has a fixed mess
 
 // ---- the proxy
 
-test("the proxy protects issues, pull requests and users, and leaves the home page and the auth and health APIs public", () => {
+test("the proxy protects the home page, issues, pull requests and users, and leaves the login page and the auth and health APIs public", () => {
   const m = proxyConfig.matcher;
-  for (const path of ["/issues", "/issues/:path*", "/pull-requests", "/pull-requests/:path*", "/users", "/users/:path*"]) assert.ok(m.includes(path), path);
-  for (const path of ["/", "/api/:path*", "/api/auth/login", "/api/health/db", "/(.*)", "/:path*"]) assert.ok(!m.includes(path), `${path} must stay public`);
+  for (const path of ["/", "/issues", "/issues/:path*", "/pull-requests", "/pull-requests/:path*", "/users", "/users/:path*"]) assert.ok(m.includes(path), path);
+  for (const path of ["/login", "/api/:path*", "/api/auth/login", "/api/health/db", "/(.*)", "/:path*"]) assert.ok(!m.includes(path), `${path} must stay public`);
 });
 
 // ---- who may act

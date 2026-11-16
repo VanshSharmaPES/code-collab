@@ -6,7 +6,7 @@ Mini project for the Database Management Systems course at PES University.
 
 ## Status
 
-Both databases, the ingestion pipeline and the similarity search are built and tested. The web interface is the part still being finished.
+Both databases, the ingestion pipeline and the similarity search are built and tested. The web interface is finished.
 
 | Area | State |
 |---|---|
@@ -17,7 +17,7 @@ Both databases, the ingestion pipeline and the similarity search are built and t
 | Embeddings and semantic search | Done (`npm run embed`, `/search`, `similar_issues`, `recommend_reviewers`) |
 | Authentication and per-project access control | Done on the server (argon2 passwords, signed session cookies) |
 | Application pages | Issues, pull requests, dashboard, contributions, search and users all work |
-| Known gap | There is **no sign-in form and no navigation bar yet**. The home page is a placeholder, pages are reached by typing the URL, and a session is created by posting to `/api/auth/login`. |
+| Sign-in and navigation | Done: a `/login` page for every role, a header with links to every page, the signed-in name and role, and Sign out |
 
 ## Architecture
 
@@ -128,15 +128,15 @@ npm run dev
 
 The app runs on http://localhost:3001. To confirm it can reach PostgreSQL, open http://localhost:3001/api/health/db, which returns `{"status":"ok"}`.
 
-There is no sign-in page yet. To get a session cookie for a seeded account:
+Open http://localhost:3001 and sign in on the login page. Seeded accounts all use the password `password123`:
 
-```bash
-curl -i -X POST http://localhost:3001/api/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"user01@seed.codecollab.test","password":"password123"}'
-```
+| Role | Email | Sees |
+|---|---|---|
+| Mentor | `user01@seed.codecollab.test` | Every member of the projects they mentor, and the dashboard |
+| Team lead | `user04@seed.codecollab.test` | The whole project their team belongs to, the dashboard, and can merge approved pull requests |
+| Student | `user19@seed.codecollab.test` | Their own project, and only their own row on the contributions page |
 
-Then open `/dashboard`, `/issues`, `/pull-requests`, `/contributions`, `/search` or `/users` directly with that cookie. `/api/auth/logout` clears it.
+`user01` to `user03` are mentors, `user04` to `user18` team leads and `user19` to `user60` students. The header links to every page; **Sign out** ends the session. The JSON endpoints `/api/auth/login` and `/api/auth/logout` still exist for scripts.
 
 Before opening a pull request, `npm run lint`, `npx tsc --noEmit`, `npm run build` and `npm test` should all pass.
 

@@ -7,8 +7,8 @@ import { SESSION_COOKIE_NAME, readSession } from "@/lib/session-token";
 // replace the check in each page and server action. Keep the target in step with UNAUTHENTICATED_REDIRECT.
 export async function proxy(request: NextRequest) {
   const session = await readSession(request.cookies.get(SESSION_COOKIE_NAME)?.value, process.env.SESSION_SECRET);
-  if (session === null) return NextResponse.redirect(new URL("/", request.url));
+  if (session === null) return NextResponse.redirect(new URL("/login", request.url));
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/issues", "/issues/:path*", "/pull-requests", "/pull-requests/:path*", "/users", "/users/:path*", "/contributions", "/contributions/:path*", "/dashboard", "/search"] };
+export const config = { matcher: ["/", "/issues", "/issues/:path*", "/pull-requests", "/pull-requests/:path*", "/users", "/users/:path*", "/contributions", "/contributions/:path*", "/dashboard", "/search"] };
